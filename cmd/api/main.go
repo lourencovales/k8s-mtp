@@ -13,10 +13,9 @@ func main() {
 	debug := flag.Bool("debug", false, "enable debug mode")
 	flag.Parse()
 
-	_ = configFile
 	_ = debug
 
-	cfg, err := config.Load(*configFile) 
+	cfg, err := config.Load(*configFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to load config file: %v\n", err)
 		os.Exit(1)

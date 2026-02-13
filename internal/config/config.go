@@ -1,13 +1,158 @@
 package config
 
-import "fmt"
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
+)
 
+// Config is a struct that holds the values that configure the app.
 type Config struct {
 	ListenAddr string `json:"listen_addr"`
-	DBURL string `json:"db_url"`
-	LogLevel string `json:"log_level"`
+	DBURL      string `json:"db_url"`
+	LogLevel   string `json:"log_level"`
 }
 
-func (c *Config) Load(file string) error {
-	return fmt.Errorf("not yet implemented")
+// Load is responsible for parsing the config for the app. It takes the
+// information from either the config file, or the environment, and then it
+// returns the Config object or an error.
+func Load(configFile string) (*Config, error) {
+	var cfg *Config
+	var configSource string
+	var err error
+
+	// we check what type of config we have
+	if configFile != "" {
+		if _, err := os.Stat(configFile); err != nil {
+			return nil, fmt.Errorf("problem loading config file: %w", err)
+		}
+		configSource = "file"
+	} else {
+		configFile = "config.json"
+		if _, err := os.Stat(configFile); err == nil {
+			configSource = "file"
+		} else {
+			if _, err := os.Stat(".env"); err == nil {
+				configSource = "env"
+			}
+		}
+	}
+
+	switch configSource {
+	case "file":
+		cfg, err = fileParse(configFile)
+	case "env":
+		cfg, err = envParse()
+	default:
+		return nil, fmt.Errorf("no config file found (tried: config.json, .env)")
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("problem with config: %w", err)
+	}
+
+	// overriding with env variables for prod deployments
+	overrideCfg(cfg)
+
+	// we make sure everything is ok
+	if err = validateCfg(cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
+// fileParse is a private function for extracting the configuration from a 
+// config file.
+func fileParse(file string) (*Config, error) {
+	var cfg Config
+
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil, fmt.Errorf("reading config file: %w", err)
+	}
+
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("parsing config: %w", err)
+	}
+
+	return &cfg, nil
+}
+
+// envParse is a private function for extracting the configuration from an .env
+// file.
+func envParse() (*Config, error) {
+	data, err := os.Open(".env")
+	if err != nil {
+		return nil, fmt.Errorf("reading .env file: %w", err)
+	}
+
+	var cfg Config
+	scanner := bufio.NewScanner(data)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if len(line) == 0 {
+			continue
+		}
+
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		result := strings.SplitN(line, "=", 2)
+		if len(result) != 2 {
+			return nil, fmt.Errorf("line %s is malformed", line)
+		}
+
+		key := strings.TrimSpace(result[0])
+		value := strings.TrimSpace(result[1])
+
+		switch key {
+		case "K8S_MTP_LISTEN_ADDR":
+			cfg.ListenAddr = value
+		case "K8S_MTP_DB_URL":
+			cfg.DBURL = value
+		case "K8S_MTP_LOG_LEVEL":
+			cfg.LogLevel = value
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanning .env: %w", err)
+	}
+
+	if err := data.Close(); err != nil {
+		return nil, err
+	}
+
+	return &cfg, nil
+}
+
+// overrideCfg is a private function for overriding values coming from the env.
+// This is useful for prod environments.
+func overrideCfg(cfg *Config) {
+	if listenAddr := os.Getenv("K8S_MTP_LISTEN_ADDR"); listenAddr != "" {
+		cfg.ListenAddr = listenAddr
+	}
+	if dburl := os.Getenv("K8S_MTP_DB_URL"); dburl != "" {
+		cfg.DBURL = dburl
+	}
+	if level := os.Getenv("K8S_MTP_LOG_LEVEL"); level != "" {
+		cfg.LogLevel = level
+	}
+}
+
+// validateCfg is a private function for checking if the necessary values for
+// operation are present.
+func validateCfg(cfg *Config) error {
+	if cfg.ListenAddr == "" {
+		return fmt.Errorf("ListenAddr is empty")
+	}
+	if cfg.DBURL == "" {
+		return fmt.Errorf("database URL is empty")
+	}
+	return nil
 }
