@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 )
@@ -13,6 +14,7 @@ type Config struct {
 	ListenAddr string `json:"listen_addr"`
 	DBURL      string `json:"db_url"`
 	LogLevel   string `json:"log_level"`
+	LogFormat string `json:"log_format"`
 }
 
 // Load is responsible for parsing the config for the app. It takes the
@@ -143,6 +145,9 @@ func overrideCfg(cfg *Config) {
 	if level := os.Getenv("K8S_MTP_LOG_LEVEL"); level != "" {
 		cfg.LogLevel = level
 	}
+	if format := os.Getenv("K8S_MTP_LOG_FORMAT"); format != "" {
+		cfg.LogFormat = format
+	}
 }
 
 // validateCfg is a private function for checking if the necessary values for
@@ -154,5 +159,51 @@ func validateCfg(cfg *Config) error {
 	if cfg.DBURL == "" {
 		return fmt.Errorf("database URL is empty")
 	}
+	if cfg.LogFormat == "" {
+		cfg.LogFormat = "console"
+	}
+	if cfg.LogFormat != "json" && cfg.LogFormat != "console" {
+		return fmt.Errorf("invalid log_format: %s", cfg.LogFormat)
+	}
+
+	validLevels := map[string]bool{
+		"debug": true, 
+		"info": true, 
+		"warn": true, 
+		"error": true,
+	}
+	if !validLevels[cfg.LogLevel] {
+		return fmt.Errorf("invalid log level: %s", cfg.LogLevel)
+	}
+
 	return nil
+}
+
+func (c *Config) slogLevel() slog.Level {
+	switch strings.ToLower(c.LogLevel) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
+func (c *Config) Handler() slog.Handler {
+	var h slog.Handler
+	if c.LogFormat == "json" {
+		h = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			AddSource: true,
+			Level: c.slogLevel(),
+		})
+	} else {
+		h = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			AddSource: true,
+			Level: c.slogLevel(),
+		})
+	}
+	return h.WithGroup("app")
 }
