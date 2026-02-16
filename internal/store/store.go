@@ -4,11 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/config"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 type Database struct {
@@ -24,6 +25,14 @@ func New(cfg *config.Config, logger *slog.Logger) (*Database, error) {
 
 	db.SetMaxOpenConns(cfg.DBMaxOpenConns)
 	db.SetMaxIdleConns(cfg.DBMaxIdleConns)
+	
+	if cfg.DBConnMaxLifetime != "" {
+		duration, err := time.ParseDuration(cfg.DBConnMaxLifetime)
+		if err != nil {
+			return nil, fmt.Errorf("invalid DB connection max lifetime: %w", err)
+		}
+		db.SetConnMaxLifetime(duration)
+	}	
 
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("cannot ping database: %w", err)
