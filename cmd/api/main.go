@@ -12,6 +12,7 @@ import (
 
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/config"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/server"
+	"git.assilvestrar.club/lourenco/k8s-mtp/internal/store"
 )
 
 func main() {
@@ -29,7 +30,21 @@ func main() {
 
 	server.Init(cfg)
 	logger := server.Logger()
-	srv := server.NewServer(cfg, logger)
+
+	db, err := store.New(cfg, logger)
+	if err != nil {
+		logger.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	if err := db.RunMigrations(cfg, "migrations"); err != nil {
+		logger.Error("failed to run migrations", "error", err)
+		os.Exit(1)
+	}
+
+
+	srv := server.NewServer(cfg, logger, db)
 
 	go func() {
 		if err := srv.Start(); err != nil && err != http.ErrServerClosed {

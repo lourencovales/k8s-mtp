@@ -8,17 +8,17 @@ import (
 	"time"
 
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/config"
+	"git.assilvestrar.club/lourenco/k8s-mtp/internal/store"
 )
 
 type Server struct {
 	*http.Server
 	config *config.Config
 	logger *slog.Logger
-
-//	store *store.DB
+	store *store.Database
 }
 
-func NewServer(cfg *config.Config, logger *slog.Logger) *Server {
+func NewServer(cfg *config.Config, logger *slog.Logger, store *store.Database) *Server {
 	httpSrv := &http.Server{
 		Addr: cfg.ListenAddr,
 		ReadTimeout: 10 * time.Second,
@@ -32,6 +32,7 @@ func NewServer(cfg *config.Config, logger *slog.Logger) *Server {
 		Server: httpSrv,
 		config: cfg,
 		logger: srvLogger,
+		store: store,
 	}
 }
 

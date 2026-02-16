@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"strconv"
 )
 
 // Config is a struct that holds the values that configure the app.
@@ -15,6 +16,9 @@ type Config struct {
 	DBURL      string `json:"db_url"`
 	LogLevel   string `json:"log_level"`
 	LogFormat string `json:"log_format"`
+	DBMaxOpenConns int `json:"db_max_open_conns"`
+	DBMaxIdleConns int `json:"db_max_idle_conns"`
+	DBConnMaxLifetime string `json:"db_conn_max_lifetime"`
 }
 
 // Load is responsible for parsing the config for the app. It takes the
@@ -119,6 +123,20 @@ func envParse() (*Config, error) {
 			cfg.DBURL = value
 		case "K8S_MTP_LOG_LEVEL":
 			cfg.LogLevel = value
+		case "K8S_MTP_DB_OPEN_CONNS":
+			v, err := strconv.Atoi(value)
+			if err != nil {
+				return nil, fmt.Errorf("K8S_MTP_DB_OPEN_CONNS is malformed")
+			}
+			cfg.DBMaxOpenConns = v
+		case "K8S_MTP_DB_IDLE_CONNS":
+			v, err := strconv.Atoi(value)
+			if err != nil {
+				return nil, fmt.Errorf("K8S_MTP_DB_IDLE_CONNS is malformed")
+			}
+			cfg.DBMaxIdleConns = v
+		case "K8S_MTP_DB_CONN_MAX_LIFETIME":
+			cfg.DBConnMaxLifetime = value
 		}
 	}
 
@@ -148,6 +166,23 @@ func overrideCfg(cfg *Config) {
 	if format := os.Getenv("K8S_MTP_LOG_FORMAT"); format != "" {
 		cfg.LogFormat = format
 	}
+	if openConns := os.Getenv("K8S_MTP_DB_OPEN_CONNS"); openConns != "" {
+		v, err := strconv.Atoi(openConns)
+		if err != nil {
+			panic("conversion of env variable K8S_MTP_DB_OPEN_CONNS")
+		}
+		cfg.DBMaxOpenConns = v
+	}
+	if idleConns := os.Getenv("K8S_MTP_DB_IDLE_CONNS"); idleConns != "" {
+		v, err := strconv.Atoi(idleConns)
+		if err != nil {
+			panic("conversion of env variable K8S_MTP_DB_IDLE_CONNS")
+		}
+		cfg.DBMaxIdleConns = v
+	}
+	if maxLifetime := os.Getenv("K8S_MTP_DB_CONN_MAX_LIFETIME"); maxLifetime != "" {
+		cfg.DBConnMaxLifetime = maxLifetime
+	}
 }
 
 // validateCfg is a private function for checking if the necessary values for
@@ -174,6 +209,16 @@ func validateCfg(cfg *Config) error {
 	}
 	if !validLevels[cfg.LogLevel] {
 		return fmt.Errorf("invalid log level: %s", cfg.LogLevel)
+	}
+
+	if cfg.DBMaxOpenConns == 0 {
+		cfg.DBMaxOpenConns = 10
+	}
+	if cfg.DBMaxIdleConns == 0 {
+		cfg.DBMaxIdleConns = 5
+	}
+	if cfg.DBConnMaxLifetime == "" {
+		cfg.DBConnMaxLifetime = "1h"
 	}
 
 	return nil
