@@ -1,0 +1,20 @@
+# Copy this file to terraform.tfvars and fill in your values
+
+# VPS Connection Details
+vps_ip = "YOUR_VPS_IP_HERE"
+ssh_username = "your_username"
+ssh_port = 22
+
+# SSH Authentication (using SSH agent is recommended)
+use_ssh_agent = true
+
+# K3s Version
+k3s_version = "v1.35.1+k3s1"
+
+# PostgreSQL Configuration
+postgres_namespace = "k8s-mtp"
+postgres_storage_size = "10Gi"
+postgres_password = "your_secure_password_here"
+
+# Application Configuration
+app_namespace = "k8s-mtp"
