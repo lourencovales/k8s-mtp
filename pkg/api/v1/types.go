@@ -2,6 +2,7 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 // +kubebuilder:object:root=true
@@ -54,4 +55,81 @@ type TenantList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Tenant `json:"items"`
+}
+
+func init() {
+	SchemeBuilder.Register(&Tenant{}, &TenantList{})
+}
+
+func (in *Tenant) DeepCopyInto(out *Tenant) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	out.Spec = in.Spec
+	in.Status.DeepCopyInto(&out.Status)
+}
+
+func (in *Tenant) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+func (in *Tenant) DeepCopy() *Tenant {
+	if in == nil {
+		return nil
+	}
+	out := &Tenant{}
+	in.DeepCopyInto(out)
+	return out
+}
+
+func (in *TenantList) DeepCopyInto(out *TenantList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]Tenant, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+func (in *TenantList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+func (in *TenantList) DeepCopy() *TenantList {
+	if in == nil {
+		return nil
+	}
+	out := &TenantList{}
+	in.DeepCopyInto(out)
+	return out
+}
+
+func (in *TenantStatus) DeepCopyInto(out *TenantStatus) {
+	*out = *in
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]metav1.Condition, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+func (in *TenantStatus) DeepCopy() *TenantStatus {
+	if in == nil {
+		return nil
+	}
+	out := &TenantStatus{}
+	in.DeepCopyInto(out)
+	return out
 }

@@ -11,6 +11,7 @@ import (
 	metricserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/config"
+	"git.assilvestrar.club/lourenco/k8s-mtp/internal/reconciler"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/server"
 	v1 "git.assilvestrar.club/lourenco/k8s-mtp/pkg/api/v1"
 )
@@ -46,7 +47,15 @@ func main() {
 		logger.Error("enable to create manager", "error", err)
 	}
 
-	// TODO: register reconciler
+	reconciler := &reconciler.TenantReconciler{
+		Client: mgr.GetClient(),
+		Logger: logger,
+	}
+
+	if err = reconciler.SetupWithManager(mgr); err != nil {
+		logger.Error("unable to create controller", "error", err)
+		os.Exit(1)
+	}
 
 	logger.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
