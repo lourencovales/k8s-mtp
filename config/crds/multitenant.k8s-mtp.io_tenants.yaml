@@ -37,6 +37,16 @@ spec:
                 ownerEmail:
                   type: string
                   format: email
+                admins:
+                  type: array
+                  items:
+                    type: string
+                  description: "List of IDs with admin privileges"
+                operators:
+                  type: array
+                  items:
+                    type: string
+                  description: "List of IDs with operator privileges"
             status:
               type: object
               properties:
@@ -61,4 +71,3 @@ spec:
         - name: Age
           type: date
           jsonPath: .metadata.creationTimestamp
-

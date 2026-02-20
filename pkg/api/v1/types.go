@@ -21,9 +21,11 @@ type Tenant struct {
 }
 
 type TenantSpec struct {
-	Name       string `json:"name"`
-	Tier       Tier   `json:"tier"`
-	OwnerEmail string `json:"ownerEmail"`
+	Name       string   `json:"name"`
+	Tier       Tier     `json:"tier"`
+	OwnerEmail string   `json:"ownerEmail"`
+	Admins     []string `json:"admins,omitempty"`
+	Operators  []string `json:"operators,omitempty"`
 }
 
 type Tier string
@@ -130,6 +132,27 @@ func (in *TenantStatus) DeepCopy() *TenantStatus {
 		return nil
 	}
 	out := &TenantStatus{}
+	in.DeepCopyInto(out)
+	return out
+}
+
+func (in *TenantSpec) DeepCopyInto(out *TenantSpec) {
+	*out = *in
+	if in.Admins != nil {
+		out.Admins = make([]string, len(in.Admins))
+		copy(out.Admins, in.Admins)
+	}
+	if in.Operators != nil {
+		out.Operators = make([]string, len(in.Operators))
+		copy(out.Operators, in.Operators)
+	}
+}
+
+func (in *TenantSpec) DeepCopy() *TenantSpec {
+	if in == nil {
+		return nil
+	}
+	out := &TenantSpec{}
 	in.DeepCopyInto(out)
 	return out
 }
