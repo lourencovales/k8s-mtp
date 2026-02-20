@@ -6,6 +6,7 @@ import (
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	metricserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -35,6 +36,7 @@ func main() {
 	scheme := kruntime.NewScheme()
 	_ = v1.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
+	_ = rbacv1.AddToScheme(scheme)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
