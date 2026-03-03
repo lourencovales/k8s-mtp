@@ -94,26 +94,16 @@ func (r *TenantReconciler) buildNamespace(t *v1.Tenant) *corev1.Namespace {
 func (r *TenantReconciler) buildResourceQuota(t *v1.Tenant) *corev1.ResourceQuota {
 	// for now we're just building for the lowest tier
 	// TODO: create more tiers
-	return &corev1.ResourceQuota{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "tenant-quota",
-			Namespace: fmt.Sprintf("tenant-%s-%s", t.Name, t.Spec.Name),
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: v1.SchemeGroupVersion.String(),
-					Kind:       "Tenant",
-					Name:       t.Name,
-					UID:        t.UID,
-				},
-			},
-		},
-		Spec: corev1.ResourceQuotaSpec{
-			Hard: corev1.ResourceList{
-				corev1.ResourceCPU:    resource.MustParse("500m"),
-				corev1.ResourceMemory: resource.MustParse("1Gi"),
-				corev1.ResourcePods:   resource.MustParse("20"),
-			},
-		},
+
+	switch t.Spec.Tier {
+	case v1.TierFree:
+		return buildFreeTier(t)
+	case v1.TierPro:
+		return buildProTier(t)
+	case v1.TierEnterprise:
+		return buildEnterpriseTier(t)
+	default:
+		return nil
 	}
 }
 
@@ -586,4 +576,79 @@ func normalizeRule(rule rbacv1.PolicyRule) string {
 	return strings.Join(apiGroups, ",") + "|" +
 		strings.Join(resources, ",") + "|" +
 		strings.Join(verbs, ",")
+}
+
+func buildFreeTier(t *v1.Tenant) *corev1.ResourceQuota {
+	return &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-quota-free",
+			Namespace: fmt.Sprintf("tenant-%s-%s", t.Name, t.Spec.Name),
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: v1.SchemeGroupVersion.String(),
+					Kind:       "Tenant",
+					Name:       t.Name,
+					UID:        t.UID,
+				},
+			},
+		},
+		Spec: corev1.ResourceQuotaSpec{
+			Hard: corev1.ResourceList{
+				corev1.ResourceCPU:     resource.MustParse("500m"),
+				corev1.ResourceMemory:  resource.MustParse("1Gi"),
+				corev1.ResourcePods:    resource.MustParse("20"),
+				corev1.ResourceStorage: resource.MustParse("10Gi"),
+			},
+		},
+	}
+}
+
+func buildProTier(t *v1.Tenant) *corev1.ResourceQuota {
+	return &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-quota-pro",
+			Namespace: fmt.Sprintf("tenant-%s-%s", t.Name, t.Spec.Name),
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: v1.SchemeGroupVersion.String(),
+					Kind:       "Tenant",
+					Name:       t.Name,
+					UID:        t.UID,
+				},
+			},
+		},
+		Spec: corev1.ResourceQuotaSpec{
+			Hard: corev1.ResourceList{
+				corev1.ResourceCPU:     resource.MustParse("4"),
+				corev1.ResourceMemory:  resource.MustParse("8Gi"),
+				corev1.ResourcePods:    resource.MustParse("100"),
+				corev1.ResourceStorage: resource.MustParse("100Gi"),
+			},
+		},
+	}
+}
+
+func buildEnterpriseTier(t *v1.Tenant) *corev1.ResourceQuota {
+	return &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-quota-enterprise",
+			Namespace: fmt.Sprintf("tenant-%s-%s", t.Name, t.Spec.Name),
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: v1.SchemeGroupVersion.String(),
+					Kind:       "Tenant",
+					Name:       t.Name,
+					UID:        t.UID,
+				},
+			},
+		},
+		Spec: corev1.ResourceQuotaSpec{
+			Hard: corev1.ResourceList{
+				corev1.ResourceCPU:     resource.MustParse("8"),
+				corev1.ResourceMemory:  resource.MustParse("16Gi"),
+				corev1.ResourcePods:    resource.MustParse("200"),
+				corev1.ResourceStorage: resource.MustParse("200Gi"),
+			},
+		},
+	}
 }
