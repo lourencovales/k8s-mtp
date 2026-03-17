@@ -14,6 +14,7 @@ import (
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/config"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/reconciler"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/server"
+	"git.assilvestrar.club/lourenco/k8s-mtp/internal/store"
 	v1 "git.assilvestrar.club/lourenco/k8s-mtp/pkg/api/v1"
 )
 
@@ -38,6 +39,18 @@ func main() {
 	_ = corev1.AddToScheme(scheme)
 	_ = rbacv1.AddToScheme(scheme)
 
+	db, err := store.New(cfg, logger)
+	if err != nil {
+		logger.Error("failed to connect to db", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	if err := db.RunMigrationsEmbedded(); err != nil {
+		logger.Error("failed to run migrations", "error")
+		os.Exit(1)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricserver.Options{BindAddress: *metricsAddr},
@@ -52,6 +65,7 @@ func main() {
 	reconciler := &reconciler.TenantReconciler{
 		Client: mgr.GetClient(),
 		Logger: logger,
+		Store:  db,
 	}
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {

@@ -17,13 +17,17 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"git.assilvestrar.club/lourenco/k8s-mtp/internal/store"
 	v1 "git.assilvestrar.club/lourenco/k8s-mtp/pkg/api/v1"
 )
 
 type TenantReconciler struct {
 	client.Client
 	Logger *slog.Logger // TODO: add logger through the package
+	Store  *store.Database
 }
+
+const tenantFinalizer = "tenant.multitenant.k8s-mtp.io/finalizer"
 
 func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).For(&v1.Tenant{}).Owns(&corev1.Namespace{}).Owns(&rbacv1.Role{}).Owns(&rbacv1.RoleBinding{}).Complete(r)
@@ -35,14 +39,63 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	desiredNamespace := r.buildNamespace(tenant)
-	desiredQuota := r.buildResourceQuota(tenant)
+	if !tenant.DeletionTimestamp.IsZero() {
+		return r.reconcileDelete(ctx, tenant)
+	}
 
-	if err := r.createOrUpdate(ctx, desiredNamespace); err != nil {
+	if !slices.Contains(tenant.Finalizers, tenantFinalizer) {
+		return r.addFinalizer(ctx, tenant)
+	}
+
+	return r.reconcileCreateOrUpdate(ctx, tenant)
+}
+
+func (r *TenantReconciler) addFinalizer(ctx context.Context, tenant *v1.Tenant) (ctrl.Result, error) {
+	tenant.Finalizers = append(tenant.Finalizers, tenantFinalizer)
+	if err := r.Update(ctx, tenant); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := r.createOrUpdate(ctx, desiredQuota); err != nil {
+	return ctrl.Result{Requeue: true}, nil
+}
+
+func (r *TenantReconciler) reconcileDelete(ctx context.Context, tenant *v1.Tenant) (ctrl.Result, error) {
+	if err := r.Store.DeleteTenant(ctx, string(tenant.UID)); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	tenant.Finalizers = removeString(tenant.Finalizers, tenantFinalizer)
+	if err := r.Update(ctx, tenant); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *TenantReconciler) reconcileCreateOrUpdate(ctx context.Context, tenant *v1.Tenant) (ctrl.Result, error) {
+	existing, err := r.Store.GetTenantByID(ctx, string(tenant.UID))
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if existing == nil {
+		if err := r.Store.CreateTenant(ctx, tenant); err != nil {
+			return ctrl.Result{}, err
+		}
+	} else {
+		if err := r.Store.UpdateTenant(ctx, tenant); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	namespace := r.buildNamespace(tenant)
+	quota := r.buildResourceQuota(tenant)
+
+	if err := r.createOrUpdate(ctx, namespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.createOrUpdate(ctx, quota); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -63,13 +116,11 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	tenant.Status.Phase = v1.TenantPhaseActive
-	tenant.Status.Namespace = desiredNamespace.Name
+	tenant.Status.Namespace = namespace.Name
 
 	if err := r.Client.Status().Update(ctx, tenant); err != nil {
 		return ctrl.Result{}, err
 	}
-
-	// TODO: requeue?
 
 	return ctrl.Result{}, nil
 }
@@ -92,9 +143,6 @@ func (r *TenantReconciler) buildNamespace(t *v1.Tenant) *corev1.Namespace {
 }
 
 func (r *TenantReconciler) buildResourceQuota(t *v1.Tenant) *corev1.ResourceQuota {
-	// for now we're just building for the lowest tier
-	// TODO: create more tiers
-
 	switch t.Spec.Tier {
 	case v1.TierFree:
 		return buildFreeTier(t)
@@ -651,4 +699,14 @@ func buildEnterpriseTier(t *v1.Tenant) *corev1.ResourceQuota {
 			},
 		},
 	}
+}
+
+func removeString(slice []string, s string) []string {
+	result := []string{}
+	for _, item := range slice {
+		if item != s {
+			result = append(result, item)
+		}
+	}
+	return result
 }
