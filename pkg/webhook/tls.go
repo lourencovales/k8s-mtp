@@ -18,7 +18,7 @@ var dnsNames = []string{
 	"webhook.k8s-mtp.svc.cluster.local",
 }
 
-func generateCA() (certPEM, keyPEM []byte, err error) {
+func GenerateCA() (certPEM, keyPEM []byte, err error) {
 	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, err
@@ -52,7 +52,7 @@ func generateCA() (certPEM, keyPEM []byte, err error) {
 	return certPEM, keyPEM, nil
 }
 
-func generateServerCert(caCertPEM, caKeyPM []byte) (certPEM, keyPEM []byte, err error) {
+func GenerateServerCert(caCertPEM, caKeyPM []byte) (certPEM, keyPEM []byte, err error) {
 	caCert, err := x509.ParseCertificate(caCertPEM)
 	if err != nil {
 		return nil, nil, err

@@ -15,6 +15,7 @@ import (
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/reconciler"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/server"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/store"
+	"git.assilvestrar.club/lourenco/k8s-mtp/internal/webhook"
 	v1 "git.assilvestrar.club/lourenco/k8s-mtp/pkg/api/v1"
 )
 
@@ -73,8 +74,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	webhook := &webhook.WebhookManager{
+		Client: mgr.GetClient(),
+		Logger: logger,
+		// TODO: add image and namespace config
+	}
+
+	ctx := ctrl.SetupSignalHandler()
+
+	if err = webhook.EnsureAll(ctx); err != nil {
+		logger.Error("unable to create webhook", "error", err)
+		os.Exit(1)
+	}
+
 	logger.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		logger.Error("problem running manager", "error", err)
 		os.Exit(1)
 	}
