@@ -6,19 +6,21 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 // Config is a struct that holds the values that configure the app.
 type Config struct {
-	ListenAddr string `json:"listen_addr"`
-	DBURL      string `json:"db_url"`
-	LogLevel   string `json:"log_level"`
-	LogFormat string `json:"log_format"`
-	DBMaxOpenConns int `json:"db_max_open_conns"`
-	DBMaxIdleConns int `json:"db_max_idle_conns"`
-	DBConnMaxLifetime string `json:"db_conn_max_lifetime"`
+	ListenAddr          string `json:"listen_addr"`
+	DBURL               string `json:"db_url"`
+	LogLevel            string `json:"log_level"`
+	LogFormat           string `json:"log_format"`
+	DBMaxOpenConns      int    `json:"db_max_open_conns"`
+	DBMaxIdleConns      int    `json:"db_max_idle_conns"`
+	DBConnMaxLifetime   string `json:"db_conn_max_lifetime"`
+	TenantEgressPolicy  string `json:"tenant_egress_policy"`  // internet or internal-only
+	PlatformAccessLabel string `json:"platform_access_label"` // "k8s-mtp.io/tenant-access"
 }
 
 // Load is responsible for parsing the config for the app. It takes the
@@ -70,7 +72,7 @@ func Load(configFile string) (*Config, error) {
 	return cfg, nil
 }
 
-// fileParse is a private function for extracting the configuration from a 
+// fileParse is a private function for extracting the configuration from a
 // config file.
 func fileParse(file string) (*Config, error) {
 	var cfg Config
@@ -137,6 +139,10 @@ func envParse() (*Config, error) {
 			cfg.DBMaxIdleConns = v
 		case "K8S_MTP_DB_CONN_MAX_LIFETIME":
 			cfg.DBConnMaxLifetime = value
+		case "K8S_MTP_TENANT_EGRESS_POLICY":
+			cfg.TenantEgressPolicy = value
+		case "K8S_MTP_PLATFORM_ACCESS_LABEL":
+			cfg.PlatformAccessLabel = value
 		}
 	}
 
@@ -183,6 +189,12 @@ func overrideCfg(cfg *Config) {
 	if maxLifetime := os.Getenv("K8S_MTP_DB_CONN_MAX_LIFETIME"); maxLifetime != "" {
 		cfg.DBConnMaxLifetime = maxLifetime
 	}
+	if tenantPolicy := os.Getenv("K8S_MTP_TENANT_EGRESS_POLICY"); tenantPolicy != "" {
+		cfg.TenantEgressPolicy = tenantPolicy
+	}
+	if accessLabel := os.Getenv("K8S_MTP_PLATFORM_ACCESS_LABEL"); accessLabel != "" {
+		cfg.PlatformAccessLabel = accessLabel
+	}
 }
 
 // validateCfg is a private function for checking if the necessary values for
@@ -202,9 +214,9 @@ func validateCfg(cfg *Config) error {
 	}
 
 	validLevels := map[string]bool{
-		"debug": true, 
-		"info": true, 
-		"warn": true, 
+		"debug": true,
+		"info":  true,
+		"warn":  true,
 		"error": true,
 	}
 	if !validLevels[cfg.LogLevel] {
@@ -219,6 +231,14 @@ func validateCfg(cfg *Config) error {
 	}
 	if cfg.DBConnMaxLifetime == "" {
 		cfg.DBConnMaxLifetime = "1h"
+	}
+
+	if cfg.TenantEgressPolicy == "" {
+		cfg.TenantEgressPolicy = "internal-only"
+	}
+
+	if cfg.PlatformAccessLabel == "" {
+		cfg.PlatformAccessLabel = "k8s-mtp.io/tenant-access"
 	}
 
 	return nil
@@ -242,12 +262,12 @@ func (c *Config) Handler() slog.Handler {
 	if c.LogFormat == "json" {
 		h = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			AddSource: true,
-			Level: c.slogLevel(),
+			Level:     c.slogLevel(),
 		})
 	} else {
 		h = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 			AddSource: true,
-			Level: c.slogLevel(),
+			Level:     c.slogLevel(),
 		})
 	}
 	return h.WithGroup("app")

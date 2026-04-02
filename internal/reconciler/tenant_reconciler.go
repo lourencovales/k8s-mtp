@@ -10,13 +10,17 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"git.assilvestrar.club/lourenco/k8s-mtp/internal/config"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/store"
 	v1 "git.assilvestrar.club/lourenco/k8s-mtp/pkg/api/v1"
 )
@@ -25,6 +29,7 @@ type TenantReconciler struct {
 	client.Client
 	Logger *slog.Logger // TODO: add logger through the package
 	Store  *store.Database
+	Config *config.Config
 }
 
 const tenantFinalizer = "tenant.multitenant.k8s-mtp.io/finalizer"
@@ -122,6 +127,11 @@ func (r *TenantReconciler) reconcileCreateOrUpdate(ctx context.Context, tenant *
 		return ctrl.Result{}, err
 	}
 
+	networkPolicy := r.buildNetworkPolicy(tenant)
+	if err := r.createOrUpdate(ctx, networkPolicy); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -191,6 +201,8 @@ func needsUpdate(current, desired client.Object) bool {
 		return roleNeedsUpdate(current.(*rbacv1.Role), desired)
 	case *rbacv1.RoleBinding:
 		return rbNeedsUpdate(current.(*rbacv1.RoleBinding), desired)
+	case *networkingv1.NetworkPolicy:
+		return npNeedsUpdate(current.(*networkingv1.NetworkPolicy), desired)
 	default:
 		return true
 	}
@@ -418,6 +430,22 @@ func rbNeedsUpdate(current, desired *rbacv1.RoleBinding) bool {
 	if current.RoleRef.APIGroup != desired.RoleRef.APIGroup ||
 		current.RoleRef.Kind != desired.RoleRef.Kind ||
 		current.RoleRef.Name != desired.RoleRef.Name {
+		return true
+	}
+
+	return false
+}
+
+func npNeedsUpdate(current, desired *networkingv1.NetworkPolicy) bool {
+	if len(current.Spec.PolicyTypes) != len(desired.Spec.PolicyTypes) {
+		return true
+	}
+
+	if len(current.Spec.Ingress) != len(desired.Spec.Ingress) {
+		return true
+	}
+
+	if len(current.Spec.Egress) != len(desired.Spec.Egress) {
 		return true
 	}
 
@@ -709,4 +737,110 @@ func removeString(slice []string, s string) []string {
 		}
 	}
 	return result
+}
+
+func (r *TenantReconciler) buildNetworkPolicy(t *v1.Tenant) *networkingv1.NetworkPolicy {
+	ns := fmt.Sprintf("tenant-%s-%s", t.Name, t.Spec.Name)
+
+	ingressRules := []networkingv1.NetworkPolicyIngressRule{
+		{
+			From: []networkingv1.NetworkPolicyPeer{
+				{
+					PodSelector: &metav1.LabelSelector{},
+				},
+			},
+		},
+		{
+			From: []networkingv1.NetworkPolicyPeer{
+				{
+					NamespaceSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"name": "k8s-mtp",
+						},
+					},
+					PodSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							r.Config.PlatformAccessLabel: "true",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	egressRules := []networkingv1.NetworkPolicyEgressRule{
+		{
+			To: []networkingv1.NetworkPolicyPeer{
+				{
+					PodSelector: &metav1.LabelSelector{},
+				},
+			},
+		},
+		{
+			To: []networkingv1.NetworkPolicyPeer{
+				{
+					NamespaceSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"name": "kube-system",
+						},
+					},
+				},
+			},
+			Ports: []networkingv1.NetworkPolicyPort{
+				{
+					Protocol: ptr.To(corev1.ProtocolUDP),
+					Port:     ptr.To(intstr.FromInt(53)),
+				},
+				{
+					Protocol: ptr.To(corev1.ProtocolTCP),
+					Port:     ptr.To(intstr.FromInt(53)),
+				},
+			},
+		},
+		{
+			To: []networkingv1.NetworkPolicyPeer{
+				{
+					NamespaceSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"name": "k8s-mtp",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if r.Config.TenantEgressPolicy == "internet" {
+		egressRules = append(egressRules, networkingv1.NetworkPolicyEgressRule{
+			To: []networkingv1.NetworkPolicyPeer{
+				{
+					IPBlock: &networkingv1.IPBlock{
+						CIDR: "0.0.0.0/0",
+					},
+				},
+			},
+		})
+	}
+
+	return &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-isolation",
+			Namespace: ns,
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: v1.SchemeGroupVersion.String(),
+				Kind:       "Tenant",
+				Name:       t.Name,
+				UID:        t.UID,
+			}},
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeIngress,
+				networkingv1.PolicyTypeEgress,
+			},
+			Ingress: ingressRules,
+			Egress:  egressRules,
+		},
+	}
 }
