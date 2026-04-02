@@ -41,6 +41,10 @@ func (w *WebhookManager) EnsureAll(ctx context.Context) error {
 		return fmt.Errorf("failed to ensure webhook config: %w", err)
 	}
 
+	if err := w.ensureMutatingWebhookConfiguration(ctx); err != nil {
+		return fmt.Errorf("failed to ensure mutating webhook config: %w", err)
+	}
+
 	return nil
 }
 
@@ -272,6 +276,70 @@ func (w *WebhookManager) ensureValidatingWebhookConfig(ctx context.Context) erro
 		return fmt.Errorf("failed to create webhook config: %w", err)
 	}
 	w.Logger.Info("Webhook config created")
+
+	return nil
+}
+
+func (w *WebhookManager) ensureMutatingWebhookConfiguration(ctx context.Context) error {
+	secret := &corev1.Secret{}
+
+	err := w.Client.Get(ctx, client.ObjectKey{Name: "webhook-tls", Namespace: w.Namespace}, secret)
+	if err != nil {
+		return fmt.Errorf("error getting secret: %w", err)
+	}
+
+	caCert := secret.Data["ca.crt"]
+
+	config := &admissionregistration.MutatingWebhookConfiguration{}
+	err = w.Client.Get(ctx, client.ObjectKey{Name: "k8s-mtp-mutating-webhook"}, config)
+	if err == nil {
+		w.Logger.Info("Webhook validation done")
+		return nil
+	}
+
+	if !apierrors.IsNotFound(err) {
+		return fmt.Errorf("failed to get mutating webhook config validation: %w", err)
+	}
+
+	w.Logger.Info("Creating mutating webhook config validation")
+
+	newConfig := &admissionregistration.MutatingWebhookConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "k8s-mtp-mutating-webhook",
+		},
+		Webhooks: []admissionregistration.MutatingWebhook{
+			{
+				Name: "k8s-mtp-mutating-webhook",
+				ClientConfig: admissionregistration.WebhookClientConfig{
+					Service: &admissionregistration.ServiceReference{
+						Name:      "webhook-svc",
+						Namespace: w.Namespace,
+						Path:      ptr.To("/mutate-pod"),
+					},
+					CABundle: caCert,
+				},
+				Rules: []admissionregistration.RuleWithOperations{
+					{
+						Operations: []admissionregistration.OperationType{"CREATE", "UPDATE"},
+						Rule: admissionregistration.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"pods"},
+						},
+					},
+				},
+				FailurePolicy:           ptr.To(admissionregistration.Fail),
+				SideEffects:             ptr.To(admissionregistration.SideEffectClassNone),
+				AdmissionReviewVersions: []string{"v1"},
+				ReinvocationPolicy:      ptr.To(admissionregistration.NeverReinvocationPolicy),
+			},
+		},
+	}
+
+	if err := w.Client.Create(ctx, newConfig); err != nil {
+		return fmt.Errorf("failed to create mutating webhook config: %w", err)
+	}
+	w.Logger.Info("Mutating webhook config created")
 
 	return nil
 }
