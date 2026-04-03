@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/config"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/server"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/store"
@@ -38,11 +40,14 @@ func main() {
 	}
 	defer db.Close()
 
-	if err := db.RunMigrations(cfg, "file://migrations"); err != nil {
-		logger.Error("failed to run migrations", "error", err)
-		os.Exit(1)
+	if err = db.RunMigrationsEmbedded(); err != nil {
+		if err == migrate.ErrNoChange {
+			logger.Info("migrations already up to date")
+		} else {
+			logger.Error("failed to run migrations", "error", err)
+			os.Exit(1)
+		}
 	}
-
 
 	srv := server.NewServer(cfg, logger, db)
 
@@ -60,7 +65,7 @@ func main() {
 
 	// graceful shutdown
 	logger.Info("shutting down server")
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {

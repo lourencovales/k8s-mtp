@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/golang-migrate/migrate/v4"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
@@ -47,9 +48,13 @@ func main() {
 	}
 	defer db.Close()
 
-	if err := db.RunMigrationsEmbedded(); err != nil {
-		logger.Error("failed to run migrations", "error")
-		os.Exit(1)
+	if err = db.RunMigrationsEmbedded(); err != nil {
+		if err == migrate.ErrNoChange {
+			logger.Info("migrations already up to date")
+		} else {
+			logger.Error("failed to run migrations", "error", err)
+			os.Exit(1)
+		}
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -74,15 +79,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	webhook := &webhook.WebhookManager{
-		Client: mgr.GetClient(),
-		Logger: logger,
-		// TODO: add image and namespace config
+	webhookMgr := &webhook.WebhookManager{
+		Client:    mgr.GetClient(),
+		Logger:    logger,
+		Namespace: "k8s-mtp",
+		Image:     "k8s-mtp-webhook:latest",
 	}
 
 	ctx := ctrl.SetupSignalHandler()
 
-	if err = webhook.EnsureAll(ctx); err != nil {
+	if err = webhookMgr.EnsureAll(ctx); err != nil {
 		logger.Error("unable to create webhook", "error", err)
 		os.Exit(1)
 	}
