@@ -132,6 +132,11 @@ func (r *TenantReconciler) reconcileCreateOrUpdate(ctx context.Context, tenant *
 		return ctrl.Result{}, err
 	}
 
+	limitRange := r.buildLimitRange(tenant)
+	if err := r.createOrUpdate(ctx, limitRange); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -203,6 +208,8 @@ func needsUpdate(current, desired client.Object) bool {
 		return rbNeedsUpdate(current.(*rbacv1.RoleBinding), desired)
 	case *networkingv1.NetworkPolicy:
 		return npNeedsUpdate(current.(*networkingv1.NetworkPolicy), desired)
+	case *corev1.LimitRange:
+		return lrNeedsUpdate(current.(*corev1.LimitRange), desired)
 	default:
 		return true
 	}
@@ -449,6 +456,23 @@ func npNeedsUpdate(current, desired *networkingv1.NetworkPolicy) bool {
 		return true
 	}
 
+	return false
+}
+
+func lrNeedsUpdate(current, desired *corev1.LimitRange) bool {
+	if len(current.Spec.Limits) != len(desired.Spec.Limits) {
+		return true
+	}
+	for i := range desired.Spec.Limits {
+		if len(current.Spec.Limits[i].Default) != len(desired.Spec.Limits[i].Default) {
+			return true
+		}
+		for k, v := range desired.Spec.Limits[i].Default {
+			if !current.Spec.Limits[i].Default[k].Equal(v) {
+				return true
+			}
+		}
+	}
 	return false
 }
 
@@ -841,6 +865,54 @@ func (r *TenantReconciler) buildNetworkPolicy(t *v1.Tenant) *networkingv1.Networ
 			},
 			Ingress: ingressRules,
 			Egress:  egressRules,
+		},
+	}
+}
+
+func (r *TenantReconciler) buildLimitRange(t *v1.Tenant) *corev1.LimitRange {
+	ns := fmt.Sprintf("tenant-%s-%s", t.Name, t.Spec.Name)
+
+	var cpu, memory string
+	switch t.Spec.Tier {
+	case v1.TierFree:
+		cpu = r.Config.LimitRangeDefaults.Free.DefaultCPU
+		memory = r.Config.LimitRangeDefaults.Free.DefaultMemory
+	case v1.TierPro:
+		cpu = r.Config.LimitRangeDefaults.Pro.DefaultCPU
+		memory = r.Config.LimitRangeDefaults.Pro.DefaultMemory
+	case v1.TierEnterprise:
+		cpu = r.Config.LimitRangeDefaults.Enterprise.DefaultCPU
+		memory = r.Config.LimitRangeDefaults.Enterprise.DefaultMemory
+	default:
+		cpu = "100m"
+		memory = "128Mi"
+	}
+
+	return &corev1.LimitRange{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-defaults",
+			Namespace: ns,
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: v1.SchemeGroupVersion.String(),
+				Kind:       "Tenant",
+				Name:       t.Name,
+				UID:        t.UID,
+			}},
+		},
+		Spec: corev1.LimitRangeSpec{
+			Limits: []corev1.LimitRangeItem{
+				{
+					Type: corev1.LimitTypeContainer,
+					Default: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse(cpu),
+						corev1.ResourceMemory: resource.MustParse(memory),
+					},
+					DefaultRequest: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse(cpu),
+						corev1.ResourceMemory: resource.MustParse(memory),
+					},
+				},
+			},
 		},
 	}
 }

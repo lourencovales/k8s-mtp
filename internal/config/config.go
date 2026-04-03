@@ -21,6 +21,20 @@ type Config struct {
 	DBConnMaxLifetime   string `json:"db_conn_max_lifetime"`
 	TenantEgressPolicy  string `json:"tenant_egress_policy"`  // internet or internal-only
 	PlatformAccessLabel string `json:"platform_access_label"` // "k8s-mtp.io/tenant-access"
+	LimitRangeDefaults  struct {
+		Free struct {
+			DefaultCPU    string `json:"default_cpu"`
+			DefaultMemory string `json:"default_memory"`
+		} `json:"free"`
+		Pro struct {
+			DefaultCPU    string `json:"default_cpu"`
+			DefaultMemory string `json:"default_memory"`
+		} `json:"pro"`
+		Enterprise struct {
+			DefaultCPU    string `json:"default_cpu"`
+			DefaultMemory string `json:"default_memory"`
+		} `json:"enterprise"`
+	} `json:"limit_range_defaults"`
 }
 
 // Load is responsible for parsing the config for the app. It takes the
@@ -239,6 +253,27 @@ func validateCfg(cfg *Config) error {
 
 	if cfg.PlatformAccessLabel == "" {
 		cfg.PlatformAccessLabel = "k8s-mtp.io/tenant-access"
+	}
+
+	if cfg.LimitRangeDefaults.Free.DefaultCPU == "" {
+		cfg.LimitRangeDefaults.Free.DefaultCPU = "100m"
+	}
+	if cfg.LimitRangeDefaults.Free.DefaultMemory == "" {
+		cfg.LimitRangeDefaults.Free.DefaultMemory = "128Mi"
+	}
+
+	if cfg.LimitRangeDefaults.Pro.DefaultCPU == "" {
+		cfg.LimitRangeDefaults.Pro.DefaultCPU = "200m"
+	}
+	if cfg.LimitRangeDefaults.Pro.DefaultMemory == "" {
+		cfg.LimitRangeDefaults.Pro.DefaultMemory = "256Mi"
+	}
+
+	if cfg.LimitRangeDefaults.Enterprise.DefaultCPU == "" {
+		cfg.LimitRangeDefaults.Enterprise.DefaultCPU = "500m"
+	}
+	if cfg.LimitRangeDefaults.Enterprise.DefaultMemory == "" {
+		cfg.LimitRangeDefaults.Enterprise.DefaultMemory = "512Mi"
 	}
 
 	return nil
