@@ -35,7 +35,15 @@ type TenantReconciler struct {
 const tenantFinalizer = "tenant.multitenant.k8s-mtp.io/finalizer"
 
 func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).For(&v1.Tenant{}).Owns(&corev1.Namespace{}).Owns(&rbacv1.Role{}).Owns(&rbacv1.RoleBinding{}).Complete(r)
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&v1.Tenant{}).
+		Owns(&corev1.Namespace{}).
+		Owns(&rbacv1.Role{}).
+		Owns(&rbacv1.RoleBinding{}).
+		Owns(&networkingv1.NetworkPolicy{}).
+		Owns(&corev1.LimitRange{}).
+		Owns(&corev1.ResourceQuota{}).
+		Complete(r)
 }
 
 func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
