@@ -268,6 +268,11 @@ func (w *WebhookManager) ensureValidatingWebhookConfig(ctx context.Context) erro
 				FailurePolicy:           ptr.To(admissionregistration.Fail),
 				SideEffects:             ptr.To(admissionregistration.SideEffectClassNone),
 				AdmissionReviewVersions: []string{"v1"},
+				NamespaceSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"tenant.k8s-mtp.io/managed": "true",
+					},
+				},
 			},
 		},
 	}
@@ -332,6 +337,11 @@ func (w *WebhookManager) ensureMutatingWebhookConfiguration(ctx context.Context)
 				SideEffects:             ptr.To(admissionregistration.SideEffectClassNone),
 				AdmissionReviewVersions: []string{"v1"},
 				ReinvocationPolicy:      ptr.To(admissionregistration.NeverReinvocationPolicy),
+				NamespaceSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"tenant.k8s-mtp.io/managed": "true",
+					},
+				},
 			},
 		},
 	}

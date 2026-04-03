@@ -160,7 +160,9 @@ func (r *TenantReconciler) buildNamespace(t *v1.Tenant) *corev1.Namespace {
 					UID:        t.UID,
 				},
 			},
-			Labels: map[string]string{},
+			Labels: map[string]string{
+				"tenant.k8s-mtp.io/managed": "true",
+			},
 		},
 	}
 }
