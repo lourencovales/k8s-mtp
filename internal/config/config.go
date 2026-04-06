@@ -42,33 +42,20 @@ type Config struct {
 // returns the Config object or an error.
 func Load(configFile string) (*Config, error) {
 	var cfg *Config
-	var configSource string
 	var err error
 
 	// we check what type of config we have
 	if configFile != "" {
-		if _, err := os.Stat(configFile); err != nil {
+		if _, err = os.Stat(configFile); err != nil {
 			return nil, fmt.Errorf("problem loading config file: %w", err)
 		}
-		configSource = "file"
-	} else {
-		configFile = "config.json"
-		if _, err := os.Stat(configFile); err == nil {
-			configSource = "file"
-		} else {
-			if _, err := os.Stat(".env"); err == nil {
-				configSource = "env"
-			}
-		}
-	}
-
-	switch configSource {
-	case "file":
 		cfg, err = fileParse(configFile)
-	case "env":
+	} else if _, err = os.Stat("config.json"); err == nil {
+		cfg, err = fileParse("config.json")
+	} else if _, err = os.Stat(".env"); err == nil {
 		cfg, err = envParse()
-	default:
-		return nil, fmt.Errorf("no config file found (tried: config.json, .env)")
+	} else {
+		cfg = &Config{}
 	}
 
 	if err != nil {
