@@ -246,7 +246,7 @@ func (w *WebhookManager) ensureValidatingWebhookConfig(ctx context.Context) erro
 		},
 		Webhooks: []admissionregistration.ValidatingWebhook{
 			{
-				Name: "k8s-mtp-webhook",
+				Name: "k8s-mtp-webhook.k8s-mtp.io",
 				ClientConfig: admissionregistration.WebhookClientConfig{
 					Service: &admissionregistration.ServiceReference{
 						Name:      "webhook-svc",
@@ -314,7 +314,7 @@ func (w *WebhookManager) ensureMutatingWebhookConfiguration(ctx context.Context)
 		},
 		Webhooks: []admissionregistration.MutatingWebhook{
 			{
-				Name: "k8s-mtp-mutating-webhook",
+				Name: "k8s-mtp-mutating-webhook.k8s-mtp.io",
 				ClientConfig: admissionregistration.WebhookClientConfig{
 					Service: &admissionregistration.ServiceReference{
 						Name:      "webhook-svc",
