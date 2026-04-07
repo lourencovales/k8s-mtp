@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"time"
 )
@@ -53,12 +54,20 @@ func GenerateCA() (certPEM, keyPEM []byte, err error) {
 }
 
 func GenerateServerCert(caCertPEM, caKeyPM []byte) (certPEM, keyPEM []byte, err error) {
-	caCert, err := x509.ParseCertificate(caCertPEM)
+	caCertBlock, _ := pem.Decode(caCertPEM)
+	if caCertBlock == nil {
+		return nil, nil, fmt.Errorf("failed to decode CA cert PEM")
+	}
+	caCert, err := x509.ParseCertificate(caCertBlock.Bytes)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	caKey, err := x509.ParseECPrivateKey(caKeyPM)
+	caKeyBlock, _ := pem.Decode(caKeyPM)
+	if caKeyBlock == nil {
+		return nil, nil, fmt.Errorf("failed to decode CA key PEM")
+	}
+	caKey, err := x509.ParseECPrivateKey(caKeyBlock.Bytes)
 	if err != nil {
 		return nil, nil, err
 	}
