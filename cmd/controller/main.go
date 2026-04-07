@@ -10,6 +10,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	metricserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/config"
@@ -79,8 +80,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	directClient, err := client.New(mgr.GetConfig(), client.Options{Scheme: scheme})
+	if err != nil {
+		logger.Error("failed to create direct client", "error", err)
+		os.Exit(1)
+	}
+
 	webhookMgr := &webhook.WebhookManager{
-		Client:    mgr.GetClient(),
+		Client:    directClient,
 		Logger:    logger,
 		Namespace: "k8s-mtp",
 		Image:     "k8s-mtp-webhook:latest",
