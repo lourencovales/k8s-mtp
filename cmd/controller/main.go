@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/golang-migrate/migrate/v4"
+	admissionregistration "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
@@ -41,6 +43,8 @@ func main() {
 	_ = v1.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
 	_ = rbacv1.AddToScheme(scheme)
+	_ = appsv1.AddToScheme(scheme)
+	_ = admissionregistration.AddToScheme(scheme)
 
 	db, err := store.New(cfg, logger)
 	if err != nil {
