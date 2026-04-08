@@ -47,6 +47,8 @@ func (r *TenantReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	r.Logger.Info("Starting reconciliation", "tenant", req.NamespacedName)
+
 	tenant := &v1.Tenant{}
 	if err := r.Get(ctx, req.NamespacedName, tenant); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
