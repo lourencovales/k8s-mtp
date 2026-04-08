@@ -9,6 +9,7 @@ import (
 	admissionregistration "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -45,6 +46,7 @@ func main() {
 	_ = rbacv1.AddToScheme(scheme)
 	_ = appsv1.AddToScheme(scheme)
 	_ = admissionregistration.AddToScheme(scheme)
+	_ = networkingv1.AddToScheme(scheme)
 
 	db, err := store.New(cfg, logger)
 	if err != nil {
@@ -77,6 +79,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Logger: logger,
 		Store:  db,
+		Config: cfg,
 	}
 
 	if err = reconciler.SetupWithManager(mgr); err != nil {
