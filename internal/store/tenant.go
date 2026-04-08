@@ -54,7 +54,7 @@ func (d *Database) GetTenantByID(ctx context.Context, id string) (*v1.Tenant, er
 	)
 
 	if err == sql.ErrNoRows {
-		return nil, err
+		return nil, nil // this is okay if tenant doesn't exist
 	}
 
 	return tenant, err
