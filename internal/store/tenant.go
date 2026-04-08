@@ -15,7 +15,7 @@ func (d *Database) CreateTenant(ctx context.Context, tenant *v1.Tenant) error {
 	query := `
 	INSERT INTO tenants (id, name, namespace, tier, owner_email)
 	VALUES ($1, $2, $3, $4, $5)
-	ON CONFLICT (id) DO NOTHING
+	ON CONFLICT (id, name) DO NOTHING
 	RETURNING created_at
 	`
 
