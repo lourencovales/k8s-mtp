@@ -706,10 +706,10 @@ func buildFreeTier(t *v1.Tenant) *corev1.ResourceQuota {
 		},
 		Spec: corev1.ResourceQuotaSpec{
 			Hard: corev1.ResourceList{
-				corev1.ResourceCPU:     resource.MustParse("500m"),
-				corev1.ResourceMemory:  resource.MustParse("1Gi"),
-				corev1.ResourcePods:    resource.MustParse("20"),
-				corev1.ResourceStorage: resource.MustParse("10Gi"),
+				corev1.ResourceCPU:                      resource.MustParse("500m"),
+				corev1.ResourceMemory:                   resource.MustParse("1Gi"),
+				corev1.ResourcePods:                     resource.MustParse("20"),
+				corev1.ResourceName("requests.storage"): resource.MustParse("10Gi"),
 			},
 		},
 	}
@@ -731,10 +731,10 @@ func buildProTier(t *v1.Tenant) *corev1.ResourceQuota {
 		},
 		Spec: corev1.ResourceQuotaSpec{
 			Hard: corev1.ResourceList{
-				corev1.ResourceCPU:     resource.MustParse("4"),
-				corev1.ResourceMemory:  resource.MustParse("8Gi"),
-				corev1.ResourcePods:    resource.MustParse("100"),
-				corev1.ResourceStorage: resource.MustParse("100Gi"),
+				corev1.ResourceCPU:                      resource.MustParse("4"),
+				corev1.ResourceMemory:                   resource.MustParse("8Gi"),
+				corev1.ResourcePods:                     resource.MustParse("100"),
+				corev1.ResourceName("requests.storage"): resource.MustParse("100Gi"),
 			},
 		},
 	}
@@ -756,10 +756,10 @@ func buildEnterpriseTier(t *v1.Tenant) *corev1.ResourceQuota {
 		},
 		Spec: corev1.ResourceQuotaSpec{
 			Hard: corev1.ResourceList{
-				corev1.ResourceCPU:     resource.MustParse("8"),
-				corev1.ResourceMemory:  resource.MustParse("16Gi"),
-				corev1.ResourcePods:    resource.MustParse("200"),
-				corev1.ResourceStorage: resource.MustParse("200Gi"),
+				corev1.ResourceCPU:                      resource.MustParse("8"),
+				corev1.ResourceMemory:                   resource.MustParse("16Gi"),
+				corev1.ResourcePods:                     resource.MustParse("200"),
+				corev1.ResourceName("requests.storage"): resource.MustParse("200Gi"),
 			},
 		},
 	}
