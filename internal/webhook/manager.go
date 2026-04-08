@@ -132,8 +132,9 @@ func (w *WebhookManager) ensureDeployment(ctx context.Context) error {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  "webhook",
-							Image: w.Image,
+							Name:            "webhook",
+							Image:           w.Image,
+							ImagePullPolicy: corev1.PullIfNotPresent,
 							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: 8443,

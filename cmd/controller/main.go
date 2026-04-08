@@ -94,7 +94,7 @@ func main() {
 		Client:    directClient,
 		Logger:    logger,
 		Namespace: "k8s-mtp",
-		Image:     "k8s-mtp-webhook:latest",
+		Image:     cfg.WebhookImage,
 	}
 
 	ctx := ctrl.SetupSignalHandler()

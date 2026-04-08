@@ -35,6 +35,7 @@ type Config struct {
 			DefaultMemory string `json:"default_memory"`
 		} `json:"enterprise"`
 	} `json:"limit_range_defaults"`
+	WebhookImage string `json:"webhook_image"`
 }
 
 // Load is responsible for parsing the config for the app. It takes the
@@ -196,6 +197,10 @@ func overrideCfg(cfg *Config) {
 	if accessLabel := os.Getenv("K8S_MTP_PLATFORM_ACCESS_LABEL"); accessLabel != "" {
 		cfg.PlatformAccessLabel = accessLabel
 	}
+
+	if webhookImage := os.Getenv("K8S_MTP_WEBHOOK_IMAGE"); webhookImage != "" {
+		cfg.WebhookImage = webhookImage
+	}
 }
 
 // validateCfg is a private function for checking if the necessary values for
@@ -261,6 +266,10 @@ func validateCfg(cfg *Config) error {
 	}
 	if cfg.LimitRangeDefaults.Enterprise.DefaultMemory == "" {
 		cfg.LimitRangeDefaults.Enterprise.DefaultMemory = "512Mi"
+	}
+
+	if cfg.WebhookImage == "" {
+		cfg.WebhookImage = "k8s-mtp-webhook:latest"
 	}
 
 	return nil
