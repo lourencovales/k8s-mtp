@@ -548,7 +548,7 @@ func buildAdminRole(t *v1.Tenant) *rbacv1.Role {
 				},
 			},
 			{
-				APIGroups: []string{},
+				APIGroups: []string{""},
 				Resources: []string{"bindings"},
 				Verbs:     []string{"create"},
 			},
