@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -183,13 +182,10 @@ func mutatePodHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encPatch := make([]byte, base64.StdEncoding.EncodedLen(len(jsonPatch)))
-	base64.StdEncoding.Encode(encPatch, jsonPatch)
-
 	response := &admissionv1.AdmissionResponse{
 		UID:       uid,
 		Allowed:   true,
-		Patch:     encPatch,
+		Patch:     jsonPatch,
 		PatchType: ptr.To(admissionv1.PatchTypeJSONPatch),
 	}
 
