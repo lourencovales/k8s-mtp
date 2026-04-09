@@ -11,7 +11,7 @@ spec:
     singular: tenant
     shortNames:
       - tn
-  scope: Namespaced
+  scope: Cluster
   versions:
     - name: v1
       served: true
