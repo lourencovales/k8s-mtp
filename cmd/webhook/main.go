@@ -166,6 +166,11 @@ func mutatePodHandler(w http.ResponseWriter, r *http.Request) {
 	patches := []map[string]any{
 		{
 			"op":    "add",
+			"path":  "/metadata/labels",
+			"value": map[string]string{},
+		},
+		{
+			"op":    "add",
 			"path":  "/metadata/labels/tenant.k8s-mtp.io~1name",
 			"value": strings.Split(namespace, "-")[1],
 		},
