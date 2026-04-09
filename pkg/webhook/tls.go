@@ -17,6 +17,8 @@ var dnsNames = []string{
 	"webhook.k8s-mtp",
 	"webhook.k8s-mtp.svc",
 	"webhook.k8s-mtp.svc.cluster.local",
+	"webhook-svc.k8s-mtp.svc",
+	"webhook-svc.k8s-mtp.svc.cluster.local",
 }
 
 func GenerateCA() (certPEM, keyPEM []byte, err error) {
