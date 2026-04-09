@@ -100,6 +100,10 @@ func validatePodHandler(w http.ResponseWriter, r *http.Request) {
 	allowed, reason := validatePodResource(&pod)
 
 	response := admissionv1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "admission.k8s.io/v1",
+			Kind:       "AdmissionReview",
+		},
 		Response: &admissionv1.AdmissionResponse{
 			UID:     uid,
 			Allowed: allowed,
@@ -190,6 +194,10 @@ func mutatePodHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rev := admissionv1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "admission.k8s.io/v1",
+			Kind:       "AdmissionReview",
+		},
 		Response: response,
 	}
 
