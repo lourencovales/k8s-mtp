@@ -506,7 +506,7 @@ func buildAdminRole(t *v1.Tenant) *rbacv1.Role {
 			{
 				APIGroups: []string{""},
 				Resources: []string{
-					"pods", "pods/logs", "pods/status", "pods/exec",
+					"pods", "pods/log", "pods/status", "pods/exec",
 					"services", "services/proxy", "endpoints",
 					"configmaps", "secrets", "serviceaccounts",
 					"events", "limitranges", "podtemplates",
