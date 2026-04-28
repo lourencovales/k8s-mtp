@@ -1,0 +1,27 @@
+name: CI
+on:
+  push:
+    branches: [main]
+jobs:
+  ci:
+    runs-on: self-hosted
+    env:
+      GOPRIVATE: git.assilvestrar.club
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Lint
+        run: make lint
+      - name: Test
+        run: make test
+      - name: Build
+        run: make build
+      - name: Docker Build
+        run: make docker-build
+      - name: Docker Login
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login git.assilvestrar.club -u ${{ secrets.REGISTRY_USER }} --password-stdin
+      - name: Docker Push
+        run: |
+          for bin in api controller webhook; do
+            docker push git.assilvestrar.club/lourenco/k8s-mtp/$bin:latest
+          done
