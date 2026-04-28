@@ -14,9 +14,10 @@ jobs:
         run: make lint
       - name: Test
         run: make test
-      - name: Build
-        run: make build
       - name: Ko Build & push
         run: |
           echo "${{ secrets.REGISTRY_TOKEN }}" | ko login git.assilvestrar.club -u ${{ secrets.REGISTRY_USER }} --password-stdin
-          KO_DOCKER_REPO=git.assilvestrar.club/lourenco/k8s-mtp ko build --bare --platform=linux/amd64 ./cmd/api ./cmd/controller ./cmd/webhook
+          for bin in api controller webhook; do
+            KO_DOCKER_REPO=git.assilvestrar.club/lourenco/k8s-mtp/$bin ko build --bare --platform=linux/amd64 ./cmd/$bin/
+          done
+          rm /var/lib/act_runner/.docker/config.json

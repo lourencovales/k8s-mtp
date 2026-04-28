@@ -24,7 +24,7 @@ lint:
 	go vet ./...
 
 ko-build:
-	KO_DOCKER_REPO=$(REGISTRY) ko build --bare --platform=linux/amd64 ./cmd/api ./cmd/controller ./cmd/webhook
+	KO_DOCKER_REPO=$(REGISTRY)/$$bin ko build 
 
 ko-local:
 	ko build --local --bare

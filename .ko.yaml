@@ -1,0 +1,11 @@
+defaultBaseImage: git.assilvestrar.club/lourenco/k8s-mtp/base:latest
+builds:
+  - id: api
+    main: ./cmd/api
+    platforms: [linux/amd64]
+  - id: controller
+    main: ./cmd/controller
+    platforms: [linux/amd64]
+  - id: webhook
+    main: ./cmd/webhook
+    platforms: [linux/amd64]
