@@ -6,7 +6,7 @@ BINARIES := api controller webhook
 REGISTRY := git.assilvestrar.club/lourenco/k8s-mtp
 VERSION ?= latest
 
-.PHONY: all build test lint docker-build clean
+.PHONY: all build test lint ko-build ko-local clean
 .DEFAULT_GOAL := build
 
 all: test lint build
@@ -23,10 +23,11 @@ test:
 lint:
 	go vet ./...
 
-docker-build: build
-	for bin in $(BINARIES); do \
-		docker build --build-arg BINARY=$$bin -t $(REGISTRY)/$$bin:$(VERSION) . ; \
-	done
+ko-build:
+	KO_DOCKER_REPO=$(REGISTRY) ko build --bare --platform=linux/amd64 ./cmd/api ./cmd/controller ./cmd/webhook
+
+ko-local:
+	ko build --local --bare
 
 clean:
 	rm -rf $(BIN_DIR)

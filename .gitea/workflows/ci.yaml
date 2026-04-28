@@ -16,12 +16,7 @@ jobs:
         run: make test
       - name: Build
         run: make build
-      - name: Docker Build
-        run: make docker-build
-      - name: Docker Login
-        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login git.assilvestrar.club -u ${{ secrets.REGISTRY_USER }} --password-stdin
-      - name: Docker Push
+      - name: Ko Build & push
         run: |
-          for bin in api controller webhook; do
-            docker push git.assilvestrar.club/lourenco/k8s-mtp/$bin:latest
-          done
+          echo "${{ secrets.REGISTRY_TOKEN }}" | ko login git.assilvestrar.club -u ${{ secrets.REGISTRY_USER }} --password-stdin
+          KO_DOCKER_REPO=git.assilvestrar.club/lourenco/k8s-mtp ko build --bare --platform=linux/amd64 ./cmd/api ./cmd/controller ./cmd/webhook
