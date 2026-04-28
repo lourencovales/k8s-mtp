@@ -1,0 +1,32 @@
+export GOPRIVATE := git.assilvestrar.club
+
+MODULE := git.assilvestrar.club/lourenco/k8s-mtp
+BIN_DIR := bin
+BINARIES := api controller webhook
+REGISTRY := git.assilvestrar.club/lourenco/k8s-mtp
+VERSION ?= latest
+
+.PHONY: all build test lint docker-build clean
+.DEFAULT_GOAL := build
+
+all: test lint build
+
+build:
+	mkdir -p $(BIN_DIR)
+	for bin in $(BINARIES); do \
+		CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o $(BIN_DIR)/$$bin ./cmd/$$bin/; \
+	done
+
+test:
+	go test ./... -count=1
+
+lint:
+	go vet ./...
+
+docker-build: build
+	for bin in $(BINARIES); do \
+		docker build --build-arg BINARY=$$bin -t $(REGISTRY)/$$bin:$(VERSION) . ; \
+	done
+
+clean:
+	rm -rf $(BIN_DIR)
