@@ -60,53 +60,30 @@ The platform consists of four main components:
    - Handles TLS certificate generation and rotation
    - Manages ValidatingWebhookConfiguration and MutatingWebhookConfiguration
 
-## Tenant Tiers
-
-| Tier | CPU | Memory | Pods | Storage |
-|------|-----|--------|------|---------|
-| Free | 500m | 1Gi | 20 | 10Gi |
-| Pro | 4 | 8Gi | 100 | 100Gi |
-| Enterprise | 8 | 16Gi | 200 | 200Gi |
-
-### Default Resource Limits
-
-| Tier | Default CPU | Default Memory |
-|------|-------------|----------------|
-| Free | 100m | 128Mi |
-| Pro | 200m | 256Mi |
-| Enterprise | 500m | 512Mi |
-
 ## Quick Start
 
 ### Prerequisites
 - Kubernetes cluster (K3s recommended) v1.28+
 - PostgreSQL database
 - kubectl configured
+- Helm 3
 
 ### Deployment
-
-Deploy components in this order:
 
 ```bash
 # 1. Deploy the CRD
 kubectl apply -f config/crds/multitenant.k8s-mtp.io_tenants.yaml
 
-# 2. Deploy RBAC resources
-kubectl apply -f test/rbac-controller-sa.yaml
-kubectl apply -f test/rbac-controller-crole.yaml
-kubectl apply -f test/rbac-controller-crolebinding.yaml
-
-# 3. Deploy ConfigMap and Secret
-kubectl apply -f test/configmap.yaml
-kubectl apply -f test/secret.yaml
-
-# 4. Deploy API and Controller
-kubectl apply -f test/deploymentl-api.yaml
-kubectl apply -f test/deploymentl-controller.yaml
-
-# 5. Deploy Ingress (optional)
-kubectl apply -f test/ingress.yaml
+# 2. Install the platform via Helm
+helm install k8s-mtp deploy/charts/k8s-mtp \
+  --set db.password=<your-postgres-password> \
+  --set image.tag=latest \
+  --set ingress.host=api.k8s-mtp.local
 ```
+
+The Helm chart deploys: namespace, ConfigMap, Secret, API Deployment and Service, Controller Deployment with RBAC, and optional Ingress.
+
+To provision the underlying infrastructure (K3s cluster + PostgreSQL), see the Terraform configs in `deploy/terraform/`.
 
 ### Creating a Tenant
 
@@ -214,30 +191,59 @@ k8s-mtp/
 ├── internal/
 │   ├── config/           # Configuration parsing
 │   ├── reconciler/       # Controller reconciliation logic
+│   ├── server/           # HTTP server setup and logging
 │   ├── store/            # Database connection and migrations
 │   └── webhook/          # Webhook deployment manager
 ├── pkg/
 │   ├── api/              # API types (Tenant CRD)
 │   └── webhook/          # TLS certificate generation
+├── base/                 # Custom FROM scratch base image
 ├── config/
 │   └── crds/             # Kubernetes CRDs
-└── test/                 # Test manifests
+├── deploy/
+│   ├── charts/k8s-mtp/   # Helm chart
+│   └── terraform/        # K3s + PostgreSQL provisioning
+├── .gitea/workflows/     # Gitea Actions CI pipeline
+├── Makefile
+├── .ko.yaml              # Ko build config
+└── config.json           # Default runtime config
 ```
 
 ### Running Tests
 
 ```bash
-# Create a test tenant
-kubectl apply -f test/test-tenant.yaml
+# Run unit tests
+make test
 
-# Test security policies
-kubectl apply -f test/test-tenant-reject.yaml
+# Run linting
+make lint
+
+# Build binaries
+make build
+```
+
+To test on a live cluster:
+```bash
+# Install the platform
+helm install k8s-mtp deploy/charts/k8s-mtp --set db.password=<password>
+
+# Create a tenant (see Quick Start for the Tenant YAML example)
+kubectl apply -f tenant.yaml
 
 # Verify resources created
-kubectl get all -n tenant-test-acme-acme
-kubectl get networkpolicy -n tenant-test-acme-acme
-kubectl get roles,rolebindings -n tenant-test-acme-acme
+kubectl get all -n tenant-<tenant-name>-<spec-name>
+kubectl get networkpolicy -n tenant-<tenant-name>-<spec-name>
+kubectl get roles,rolebindings -n tenant-<tenant-name>-<spec-name>
 ```
+
+### CI/CD
+
+On push to `main`, the Gitea Actions pipeline (`.gitea/workflows/ci.yaml`) runs:
+
+1. **Lint** (`go vet`)
+2. **Test** (`go test ./...`)
+3. **Build & push** container images via ko (daemonless, self-hosted)
+4. **Package & push** Helm chart to Gitea registry
 
 ### Technology Stack
 
@@ -245,6 +251,7 @@ kubectl get roles,rolebindings -n tenant-test-acme-acme
 - **controller-runtime** - Kubernetes operator framework
 - **K3s** - Lightweight Kubernetes distribution
 - **PostgreSQL** - Tenant metadata storage
+- **ko** - Daemonless Go container builds
 - **lib/pq** - PostgreSQL driver (stdlib compatible)
 
 ### Design Principles
