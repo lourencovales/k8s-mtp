@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: "{{ .Values.namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: {{ include "k8s-mtp.image" (dict "name" "api" "Values" $.Values) }}
+          args: ["-config", "/etc/k8s-mtp/config.json"]
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.api.port }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/k8s-mtp
+              readOnly: true
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: password
+            - name: K8S_MTP_DB_URL
+              value: "postgres://k8s-mtp:$(DB_PASSWORD)@postgres.k8s-mtp.svc.cluster.local:5432/k8s-mtp?sslmode=disable"
+            - name: K8S_MTP_LOG_LEVEL
+              value: "info"
+            - name: K8S_MTP_LOG_FORMAT
+              value: "json"
+      volumes:
+        - name: config
+          configMap:
+            name: k8s-mtp-config
+

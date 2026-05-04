@@ -1,0 +1,90 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-mtp-controller
+rules:
+  # Core resources
+  - apiGroups: [""]
+    resources: [namespaces, secrets, services, configmaps, serviceaccounts, endpoints, events, mitranges, podtemplates]
+    verbs: [get, list, watch, create, update, patch, delete, deletecollection]
+  - apiGroups: [""]
+    resources: [pods, pods/exec, pods/log, pods/status]
+    verbs: [get, list, watch, create, update, patch, delete, deletecollection]
+  - apiGroups: [""]
+    resources: [services/proxy]
+    verbs: [get, list, watch, create, update, patch, delete, deletecollection]
+  - apiGroups: [""]
+    resources: [bindings]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [resourcequotas, limitranges]
+    verbs: [get, list, watch, create, update, patch, delete, deletecollection]
+  
+  # RBAC
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: [roles, rolebindings, clusterroles, clusterrolebindings]
+    verbs: [get, list, watch, create, update, patch, delete]
+  
+  # Networking
+  - apiGroups: ["networking.k8s.io"]
+    resources: [networkpolicies]
+    verbs: [get, list, watch, create, update, patch, delete]
+  
+  # Apps
+  - apiGroups: ["apps"]
+    resources: [deployments, deployments/scale, deployments/status]
+    verbs: [get, list, watch, create, update, patch, delete, deletecollection]
+  - apiGroups: ["apps"]
+    resources: [replicasets, replicasets/scale, replicasets/status]
+    verbs: [get, list, watch, create, update, patch, delete, deletecollection]
+  - apiGroups: ["apps"]
+    resources: [daemonsets, daemonsets/status]
+    verbs: [get, list, watch, create, update, patch, delete, deletecollection]
+  - apiGroups: ["apps"]
+    resources: [statefulsets, statefulsets/scale, statefulsets/status]
+    verbs: [get, list, watch, create, update, patch, delete, deletecollection]
+  
+  # Batch
+  - apiGroups: ["batch"]
+    resources: [jobs, jobs/status]
+    verbs: [get, list, watch, create, update, patch, delete, deletecollection]
+  - apiGroups: ["batch"]
+    resources: [cronjobs, cronjobs/status]
+    verbs: [get, list, watch, create, update, patch, delete, deletecollection]
+  
+  # Autoscaling
+  - apiGroups: ["autoscaling"]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch, create, update, patch, delete]
+  
+  # Webhooks
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: [validatingwebhookconfigurations, mutatingwebhookconfigurations]
+    verbs: [get, list, watch, create, update, patch, delete]
+  
+  # Tenant CRD
+  - apiGroups: ["multitenant.k8s-mtp.io"]
+    resources: [tenants]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: ["multitenant.k8s-mtp.io"]
+    resources: [tenants/status]
+    verbs: [get, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-mtp-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: k8s-mtp-controller
+subjects:
+  - kind: ServiceAccount
+    name: k8s-mtp-controller
+    namespace: {{ .Values.namespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-mtp-controller
+  namespace: {{ .Values.namespace }}

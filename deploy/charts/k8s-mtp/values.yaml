@@ -1,0 +1,28 @@
+namespace: k8s-mtp
+
+image:
+  registry: git.assilvestrar.club/lourenco/k8s-mtp
+  tag: latest
+
+api:
+  replicas: 1
+  port: 8080
+  logLevel: info
+  logFormat: json
+
+controller:
+  replicas: 1
+
+webhook:
+  image: "git.assilvestrar.club/lourenco/k8s-mtp/webhook:latest"
+
+db:
+  host: postgres.k8s-mtp.svc.cluster.local
+  port: 5432
+  name: k8s-mtp
+  user: k8s-mtp
+  password: ""
+
+ingress:
+  enabled: true
+  host: api.k8s-mtp.local

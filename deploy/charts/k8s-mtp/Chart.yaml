@@ -1,0 +1,6 @@
+apiVersion: v2
+name: k8s-mtp
+version: 0.0.1
+type: application
+description: "Helm chart for deploying k8s-mtp, a k8s native multi-tenant platform"
+appVersion: "0.0.1"

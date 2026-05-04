@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k8s-mtp-config
+  namespace: {{ .Values.namespace }}
+data:
+  config.json: |
+    {
+      "listen_addr": ":{{ .Values.api.port }}",
+      "db_url": "postgres://{{ .Values.db.host }}",
+      "log_level": "{{ .Values.api.logLevel }}",
+      "log_format": "{{ .Values.api.logFormat }}",
+      "webhook_image": "{{ .Values.webhook.image }}"
+    }

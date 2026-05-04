@@ -1,0 +1,9 @@
+1. Get the application URL:
+   http{{ if .Values.ingress.enabled }}s{{ end }}://{{ .Values.ingress.host }}
+
+2. Check pod status:
+   kubectl get pods -n {{ .Values.namespace }}
+
+3. View logs:
+   kubectl logs -n {{ .Values.namespace }} deployment/api
+   kubectl logs -n {{ .Values.namespace }} deployment/controller

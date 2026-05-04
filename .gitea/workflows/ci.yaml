@@ -14,10 +14,17 @@ jobs:
         run: make lint
       - name: Test
         run: make test
-      - name: Ko Build & push
+      - name: Ko Build & Push
         run: |
           echo "${{ secrets.REGISTRY_TOKEN }}" | ko login git.assilvestrar.club -u ${{ secrets.REGISTRY_USER }} --password-stdin
           for bin in api controller webhook; do
             KO_DOCKER_REPO=git.assilvestrar.club/lourenco/k8s-mtp/$bin ko build --bare --platform=linux/amd64 ./cmd/$bin/
           done
           rm /var/lib/act_runner/.docker/config.json
+      - name: Helm Lint
+        run: helm lint deploy/charts/k8s-mtp
+      - name: Helm Package & Push
+        run: |
+          helm package deploy/charts/k8s-mtp
+          echo "${{ secrets.REGISTRY_TOKEN }}" | helm registry login git.assilvestrar.club -u ${{ secrets.REGISTRY_USER }} --password-stdin
+          helm push k8s-mtp-*.tgz oci://git.assilvestrar.club/lourenco/charts
