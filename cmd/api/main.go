@@ -13,6 +13,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/config"
+	"git.assilvestrar.club/lourenco/k8s-mtp/internal/middleware"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/server"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/store"
 )
@@ -49,7 +50,13 @@ func main() {
 		}
 	}
 
-	srv := server.NewServer(cfg, logger, db)
+	auth := middleware.NewAuthMiddleware(cfg, logger)
+	if auth == nil {
+		logger.Error("failed to wire the auth middlware")
+		os.Exit(1)
+	}
+
+	srv := server.NewServer(cfg, logger, db, auth)
 
 	go func() {
 		if err := srv.Start(); err != nil && err != http.ErrServerClosed {
