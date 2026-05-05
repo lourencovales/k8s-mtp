@@ -35,7 +35,12 @@ type Config struct {
 			DefaultMemory string `json:"default_memory"`
 		} `json:"enterprise"`
 	} `json:"limit_range_defaults"`
-	WebhookImage string `json:"webhook_image"`
+	WebhookImage          string `json:"webhook_image"`
+	DexIssuerURL          string `json:"dex_issuer_url"`
+	DexClientID           string `json:"dex_client_id"`
+	AuthEnabled           bool   `json:"auth_enabled"`
+	RateRequestsPerMinute int    `json:"rate_requests_per_minute"`
+	RateBurst             int    `json:"rate_burst"`
 }
 
 // Load is responsible for parsing the config for the app. It takes the
@@ -145,6 +150,28 @@ func envParse() (*Config, error) {
 			cfg.TenantEgressPolicy = value
 		case "K8S_MTP_PLATFORM_ACCESS_LABEL":
 			cfg.PlatformAccessLabel = value
+		case "K8S_MTP_DEX_CLIENT_ID":
+			cfg.DexClientID = value
+		case "K8S_MTP_DEX_ISSUER_URL":
+			cfg.DexIssuerURL = value
+		case "K8S_MTP_AUTH_ENABLED":
+			v, err := strconv.ParseBool(value)
+			if err != nil {
+				return nil, fmt.Errorf("K8S_MTP_AUTH_ENABLED is malformed")
+			}
+			cfg.AuthEnabled = v
+		case "K8S_MTP_RATE_REQUESTS_PER_MINUTE":
+			v, err := strconv.Atoi(value)
+			if err != nil {
+				return nil, fmt.Errorf("K8S_MTP_RATE_REQUESTS_PER_MINUTE is malformed")
+			}
+			cfg.RateRequestsPerMinute = v
+		case "K8S_MTP_RATE_BURST":
+			v, err := strconv.Atoi(value)
+			if err != nil {
+				return nil, fmt.Errorf("K8S_MTP_RATE_BURST is malformed")
+			}
+			cfg.RateBurst = v
 		}
 	}
 
@@ -200,6 +227,34 @@ func overrideCfg(cfg *Config) {
 
 	if webhookImage := os.Getenv("K8S_MTP_WEBHOOK_IMAGE"); webhookImage != "" {
 		cfg.WebhookImage = webhookImage
+	}
+
+	if dexURL := os.Getenv("K8S_MTP_DEX_ISSUER_URL"); dexURL != "" {
+		cfg.DexIssuerURL = dexURL
+	}
+	if dexID := os.Getenv("K8S_MTP_DEX_CLIENT_ID"); dexID != "" {
+		cfg.DexClientID = dexID
+	}
+	if auth := os.Getenv("K8S_MTP_AUTH_ENABLED"); auth != "" {
+		v, err := strconv.ParseBool(auth)
+		if err != nil {
+			panic("conversion of env variable K8S_MTP_AUTH_ENABLED")
+		}
+		cfg.AuthEnabled = v
+	}
+	if rpm := os.Getenv("K8S_MTP_RATE_REQUESTS_PER_MINUTE"); rpm != "" {
+		v, err := strconv.Atoi(rpm)
+		if err != nil {
+			panic("conversion of env variable K8S_MTP_RATE_REQUESTS_PER_MINUTE")
+		}
+		cfg.RateRequestsPerMinute = v
+	}
+	if rb := os.Getenv("K8S_MTP_RATE_BURST"); rb != "" {
+		v, err := strconv.Atoi(rb)
+		if err != nil {
+			panic("conversion of env variable K8S_MTP_RATE_BURST")
+		}
+		cfg.RateBurst = v
 	}
 }
 
@@ -270,6 +325,18 @@ func validateCfg(cfg *Config) error {
 
 	if cfg.WebhookImage == "" {
 		cfg.WebhookImage = "k8s-mtp-webhook:latest"
+	}
+
+	if cfg.DexClientID == "" {
+		cfg.DexClientID = "k8s-mtp"
+	}
+
+	if cfg.RateRequestsPerMinute == 0 {
+		cfg.RateRequestsPerMinute = 60
+	}
+
+	if cfg.RateBurst == 0 {
+		cfg.RateBurst = 10
 	}
 
 	return nil

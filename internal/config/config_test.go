@@ -47,6 +47,42 @@ func TestLoad(t *testing.T) {
 			t.Errorf("expected error for missing file")
 		}
 	})
+	t.Run("parsing Dex related fields", func(t *testing.T) {
+		cfg := `{"db_url": "postgresql://test:test@localhost",
+		"listen_addr": ":9090", 
+		"log_level": "debug",
+		"dex_issuer_url": "https://dex.cluster.local",
+		"dex_client_id": "test_client_id"}`
+		file := writeTempConfig(t, cfg)
+		got, err := Load(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.DexIssuerURL != "https://dex.cluster.local" {
+			t.Errorf("expected `https://dex.cluster.local`, got %s", got.DexIssuerURL)
+		}
+		if got.DexClientID != "test_client_id" {
+			t.Errorf("expected `test_client_id`, got %s", got.DexClientID)
+		}
+	})
+	t.Run("parsing Rate related fields", func(t *testing.T) {
+		cfg := `{"db_url": "postgresql://test:test@localhost",
+		"listen_addr": ":9090", 
+		"log_level": "debug",
+		"rate_requests_per_minute": 50,
+		"rate_burst": 8}`
+		file := writeTempConfig(t, cfg)
+		got, err := Load(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.RateRequestsPerMinute != 50 {
+			t.Errorf("expected 50 rate rpm, got %d", got.RateRequestsPerMinute)
+		}
+		if got.RateBurst != 8 {
+			t.Errorf("expected 8 for rate burst, got %d", got.RateBurst)
+		}
+	})
 }
 
 func writeTempConfig(t *testing.T, content string) string {
