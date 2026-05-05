@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/config"
+	"git.assilvestrar.club/lourenco/k8s-mtp/internal/middleware"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/store"
 )
 
@@ -15,15 +16,16 @@ type Server struct {
 	*http.Server
 	config *config.Config
 	logger *slog.Logger
-	store *store.Database
+	store  *store.Database
+	auth   *middleware.AuthMiddleware
 }
 
-func NewServer(cfg *config.Config, logger *slog.Logger, store *store.Database) *Server {
+func NewServer(cfg *config.Config, logger *slog.Logger, store *store.Database, auth *middleware.AuthMiddleware) *Server {
 	httpSrv := &http.Server{
-		Addr: cfg.ListenAddr,
-		ReadTimeout: 10 * time.Second,
+		Addr:         cfg.ListenAddr,
+		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
-		IdleTimeout: 60 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	srvLogger := logger.With("service", "api-server")
@@ -32,13 +34,15 @@ func NewServer(cfg *config.Config, logger *slog.Logger, store *store.Database) *
 		Server: httpSrv,
 		config: cfg,
 		logger: srvLogger,
-		store: store,
+		store:  store,
+		auth:   auth,
 	}
 }
 
 func (s *Server) NewMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/health", s.loggingMiddleware(s.healthHandler()))
+	// TODO: mux.Handle("/api/v1/tenants", s.loggingMiddleware(s.auth.Auth(s.listTenants())))
 
 	return mux
 }
