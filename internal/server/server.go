@@ -18,9 +18,15 @@ type Server struct {
 	logger *slog.Logger
 	store  *store.Database
 	auth   *middleware.AuthMiddleware
+	rl     *middleware.RateLimiter
 }
 
-func NewServer(cfg *config.Config, logger *slog.Logger, store *store.Database, auth *middleware.AuthMiddleware) *Server {
+func NewServer(cfg *config.Config,
+	logger *slog.Logger,
+	store *store.Database,
+	auth *middleware.AuthMiddleware,
+	rl *middleware.RateLimiter,
+) *Server {
 	httpSrv := &http.Server{
 		Addr:         cfg.ListenAddr,
 		ReadTimeout:  10 * time.Second,
@@ -36,13 +42,14 @@ func NewServer(cfg *config.Config, logger *slog.Logger, store *store.Database, a
 		logger: srvLogger,
 		store:  store,
 		auth:   auth,
+		rl:     rl,
 	}
 }
 
 func (s *Server) NewMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/health", s.loggingMiddleware(s.healthHandler()))
-	// TODO: mux.Handle("/api/v1/tenants", s.loggingMiddleware(s.auth.Auth(s.listTenants())))
+	// TODO: mux.Handle("/api/v1/tenants", s.loggingMiddleware(s.ratelimit.Ratelimit(s.auth.Auth(s.listTenants()))))
 
 	return mux
 }

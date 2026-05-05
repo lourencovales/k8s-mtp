@@ -55,8 +55,13 @@ func main() {
 		logger.Error("failed to wire the auth middlware")
 		os.Exit(1)
 	}
+	rl := middleware.NewRateLimiter(cfg, logger)
+	if rl == nil {
+		logger.Error("failed to wire the rate limiter middleware")
+		os.Exit(1)
+	}
 
-	srv := server.NewServer(cfg, logger, db, auth)
+	srv := server.NewServer(cfg, logger, db, auth, rl)
 
 	go func() {
 		if err := srv.Start(); err != nil && err != http.ErrServerClosed {
