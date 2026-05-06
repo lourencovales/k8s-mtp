@@ -8,17 +8,19 @@ import (
 	"time"
 
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/config"
+	"git.assilvestrar.club/lourenco/k8s-mtp/internal/handlers"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/middleware"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/store"
 )
 
 type Server struct {
 	*http.Server
-	config *config.Config
-	logger *slog.Logger
-	store  *store.Database
-	auth   *middleware.AuthMiddleware
-	rl     *middleware.RateLimiter
+	config        *config.Config
+	logger        *slog.Logger
+	store         *store.Database
+	auth          *middleware.AuthMiddleware
+	rl            *middleware.RateLimiter
+	tenantHandler *handlers.TenantHandler
 }
 
 func NewServer(cfg *config.Config,
@@ -26,6 +28,7 @@ func NewServer(cfg *config.Config,
 	store *store.Database,
 	auth *middleware.AuthMiddleware,
 	rl *middleware.RateLimiter,
+	tenantHandler *handlers.TenantHandler,
 ) *Server {
 	httpSrv := &http.Server{
 		Addr:         cfg.ListenAddr,
@@ -37,19 +40,24 @@ func NewServer(cfg *config.Config,
 	srvLogger := logger.With("service", "api-server")
 
 	return &Server{
-		Server: httpSrv,
-		config: cfg,
-		logger: srvLogger,
-		store:  store,
-		auth:   auth,
-		rl:     rl,
+		Server:        httpSrv,
+		config:        cfg,
+		logger:        srvLogger,
+		store:         store,
+		auth:          auth,
+		rl:            rl,
+		tenantHandler: tenantHandler,
 	}
 }
 
 func (s *Server) NewMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/health", s.loggingMiddleware(s.healthHandler()))
-	// TODO: mux.Handle("/api/v1/tenants", s.loggingMiddleware(s.ratelimit.Ratelimit(s.auth.Auth(s.listTenants()))))
+	mux.Handle("GET /api/v1/tenants", s.loggingMiddleware(s.rl.Limit(s.auth.Auth(s.tenantHandler.ListTenants()))))
+	mux.Handle("POST /api/v1/tenants", s.loggingMiddleware(s.rl.Limit(s.auth.Auth(s.tenantHandler.CreateTenant()))))
+	mux.Handle("GET /api/v1/tenants/{id}", s.loggingMiddleware(s.rl.Limit(s.auth.Auth(s.tenantHandler.GetTenant()))))
+	mux.Handle("PUT /api/v1/tenants/{id}", s.loggingMiddleware(s.rl.Limit(s.auth.Auth(s.tenantHandler.UpdateTenant()))))
+	mux.Handle("DELETE /api/v1/tenants/{id}", s.loggingMiddleware(s.rl.Limit(s.auth.Auth(s.tenantHandler.DeleteTenant()))))
 
 	return mux
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/config"
+	"git.assilvestrar.club/lourenco/k8s-mtp/internal/handlers"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/middleware"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/server"
 	"git.assilvestrar.club/lourenco/k8s-mtp/internal/store"
@@ -60,8 +61,13 @@ func main() {
 		logger.Error("failed to wire the rate limiter middleware")
 		os.Exit(1)
 	}
+	tenantHandler := handlers.NewTenantHandler(db, logger)
+	if tenantHandler == nil {
+		logger.Error("failed to wire the tenant handler middleware")
+		os.Exit(1)
+	}
 
-	srv := server.NewServer(cfg, logger, db, auth, rl)
+	srv := server.NewServer(cfg, logger, db, auth, rl, tenantHandler)
 
 	go func() {
 		if err := srv.Start(); err != nil && err != http.ErrServerClosed {
