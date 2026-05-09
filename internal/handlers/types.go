@@ -24,3 +24,13 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+type AddMemberRequest struct {
+	UserID string `json:"user_id"`
+	Role   string `json:"role"`
+}
+
+type MemberResponse struct {
+	UserID    string `json:"user_id"`
+	Role      string `json:"role"`
+	CreatedAt string `json:"created_at"`
+}
