@@ -66,8 +66,13 @@ func main() {
 		logger.Error("failed to wire the tenant handler middleware")
 		os.Exit(1)
 	}
+	memberHandler := handlers.NewMemberHandler(db, logger)
+	if memberHandler == nil {
+		logger.Error("failed to wire the member handler middlware")
+		os.Exit(1)
+	}
 
-	srv := server.NewServer(cfg, logger, db, auth, rl, tenantHandler)
+	srv := server.NewServer(cfg, logger, db, auth, rl, tenantHandler, memberHandler)
 
 	go func() {
 		if err := srv.Start(); err != nil && err != http.ErrServerClosed {

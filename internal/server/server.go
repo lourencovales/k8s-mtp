@@ -21,6 +21,7 @@ type Server struct {
 	auth          *middleware.AuthMiddleware
 	rl            *middleware.RateLimiter
 	tenantHandler *handlers.TenantHandler
+	memberHandler *handlers.MemberHandler
 }
 
 func NewServer(cfg *config.Config,
@@ -29,6 +30,7 @@ func NewServer(cfg *config.Config,
 	auth *middleware.AuthMiddleware,
 	rl *middleware.RateLimiter,
 	tenantHandler *handlers.TenantHandler,
+	memberHandler *handlers.MemberHandler,
 ) *Server {
 	httpSrv := &http.Server{
 		Addr:         cfg.ListenAddr,
@@ -47,6 +49,7 @@ func NewServer(cfg *config.Config,
 		auth:          auth,
 		rl:            rl,
 		tenantHandler: tenantHandler,
+		memberHandler: memberHandler,
 	}
 }
 
@@ -58,6 +61,9 @@ func (s *Server) NewMux() *http.ServeMux {
 	mux.Handle("GET /api/v1/tenants/{id}", s.loggingMiddleware(s.rl.Limit(s.auth.Auth(s.tenantHandler.GetTenant()))))
 	mux.Handle("PUT /api/v1/tenants/{id}", s.loggingMiddleware(s.rl.Limit(s.auth.Auth(s.tenantHandler.UpdateTenant()))))
 	mux.Handle("DELETE /api/v1/tenants/{id}", s.loggingMiddleware(s.rl.Limit(s.auth.Auth(s.tenantHandler.DeleteTenant()))))
+	mux.Handle("POST /api/v1/tenants/{id}/members", s.loggingMiddleware(s.rl.Limit(s.auth.Auth(s.memberHandler.AddMember()))))
+	mux.Handle("DELETE /api/v1/tenants/{id}/members/{userId}", s.loggingMiddleware(s.rl.Limit(s.auth.Auth(s.memberHandler.RemoveMember()))))
+	mux.Handle("GET /api/v1/tenants/{id}/members", s.loggingMiddleware(s.rl.Limit(s.auth.Auth(s.memberHandler.ListMembers()))))
 
 	return mux
 }
