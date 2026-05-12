@@ -111,7 +111,8 @@ func (a *AuthMiddleware) Auth(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func UserFromContext(ctx context.Context) string {
-	return ctx.Value(userCtxKey).(string)
+	user, _ := ctx.Value(userCtxKey).(string)
+	return user
 }
 
 func (j *jwk) publicKey() (any, error) {
