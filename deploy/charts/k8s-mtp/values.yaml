@@ -26,3 +26,38 @@ db:
 ingress:
   enabled: true
   host: api.k8s-mtp.local
+
+dex:
+  enabled: true
+  image:
+    repository: ghcr.io/dexidp/dex
+    tag: v2.45.1
+    pullPolicy: IfNotPresent
+  config:
+    issuer: "http://dex.k8s-mtp.svc.cluster.local:5556"
+    storage:
+      type: sqlite3
+      config:
+        file: /var/dex/dex.db
+    web:
+      http: 0.0.0.0:5556
+    oauth2:
+      skipApprovalScreen: true
+      passwordConnector: local
+    staticClients:
+      - id: k8s-mtp
+        name: k8s-mtp
+        secret: k8s-mtp-client-secret
+        redirectURIs:
+          - http://localhost:8080/callback
+      - id: k8s-mtp-cli
+        name: CLI
+        public: true
+        redirectURIs:
+          - http://localhost:8080/callback
+    enablePasswordDB: true
+    staticPasswords:
+      - email: admin@k8s-mtp.local
+        hash: $2y$10$6tGsAM/H1TnUG5UfXUUxSuLN3ZyYjHW5sSdKxv4z56m4OXOWySpkW
+        username: admin
+        userID: admin-uuid

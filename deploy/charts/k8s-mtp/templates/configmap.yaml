@@ -10,5 +10,7 @@ data:
       "db_url": "postgres://{{ .Values.db.host }}",
       "log_level": "{{ .Values.api.logLevel }}",
       "log_format": "{{ .Values.api.logFormat }}",
-      "webhook_image": "{{ .Values.webhook.image }}"
+      "webhook_image": "{{ .Values.webhook.image }}",
+      "dex_issuer_url": "{{ .Values.dex.config.issuer }}",
+      "dex_client_id": "k8s-mtp"
     }

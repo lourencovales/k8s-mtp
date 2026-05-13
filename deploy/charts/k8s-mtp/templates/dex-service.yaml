@@ -1,0 +1,14 @@
+{{- if .Values.dex.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: dex
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: dex
+  ports:
+    - name: http
+      port: 5556
+      targetPort: 5556
+{{- end }}
