@@ -16,6 +16,7 @@ build:
 	for bin in $(BINARIES); do \
 		CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o $(BIN_DIR)/$$bin ./cmd/$$bin/; \
 	done
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o $(BIN_DIR)/k8s-mtp ./cmd/cli
 
 test:
 	go test ./... -count=1
