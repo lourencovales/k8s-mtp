@@ -1,6 +1,6 @@
 # k8s-mtp
 
-A Kubernetes multi-tenant platform that provides isolated tenant environments with resource quotas, RBAC management, network policies, and comprehensive security enforcement through admission webhooks.
+A Kubernetes multi-tenant platform that provides isolated tenant environments with resource quotas, RBAC management, network policies, security enforcement through admission webhooks, a REST API with JWT authentication, and a CLI management tool.
 
 ## Overview
 
@@ -30,6 +30,15 @@ Built with Go's standard library where possible, minimizing external dependencie
   - Required resource limits (CPU and Memory)
 - **RBAC Management**: Automated Role and RoleBinding creation with admin/operator differentiation
 
+### Authentication & API
+- **Dex OIDC**: Integrated identity provider with static passwords for bootstrapping (Helm-managed)
+- **JWT Middleware**: Token validation with JWKS key rotation, issuer and audience enforcement
+- **REST API**: Full tenant and member CRUD (8 endpoints) with authenticated access
+- **Rate Limiting**: Per-user token bucket rate limiter with configurable RPM and burst
+- **Member Management**: Add, remove, and list tenant members with admin/operator roles
+- **CLI Tool**: `k8s-mtp` binary for login, tenant CRUD, and member management
+- **Configurable Auth**: Toggle authentication on/off for development (`auth_enabled: false`)
+
 ### Resource Management
 - **ResourceQuotas**: Tier-based limits for CPU, Memory, Pods, and Storage
 - **LimitRanges**: Default resource requests and limits per tier
@@ -37,7 +46,7 @@ Built with Go's standard library where possible, minimizing external dependencie
 
 ## Architecture
 
-The platform consists of four main components:
+The platform consists of six main components:
 
 1. **Controller** (`cmd/controller`): 
    - Watches Tenant CRDs using controller-runtime reconciler pattern
@@ -46,9 +55,11 @@ The platform consists of four main components:
    - Self-healing: recreates resources if manually deleted
 
 2. **API Server** (`cmd/api`): 
-   - REST API for external integrations
+   - REST API for tenant and member CRUD operations (8 endpoints)
+   - JWT validation middleware fetches JWKS from Dex and enforces issuer/audience
+   - Per-user rate limiting with configurable RPM and burst
    - Structured logging with slog
-   - Middleware pattern for authentication and rate limiting
+   - Middleware chain: logging → rate limit → auth → handler
 
 3. **Webhook Server** (`cmd/webhook`): 
    - Validating admission controller for pod security enforcement
@@ -59,6 +70,17 @@ The platform consists of four main components:
    - Deploys and manages webhook infrastructure
    - Handles TLS certificate generation and rotation
    - Manages ValidatingWebhookConfiguration and MutatingWebhookConfiguration
+
+5. **Dex** (OIDC Provider):
+   - Manages authentication via static passwords (bootstrapping), extensible to external IdPs
+   - Issues signed JWTs consumed by the API server's auth middleware
+   - Helm-managed deployment with SQLite storage
+
+6. **CLI Tool** (`cmd/cli/`):
+   - `k8s-mtp login` — exchanges Dex credentials for a JWT
+   - `k8s-mtp tenant` — list, create, get, update, delete tenants via the REST API
+   - `k8s-mtp member` — add, list, remove tenant members
+   - Stores config and token in `~/.k8s-mtp/config`
 
 ## Quick Start
 
@@ -78,10 +100,11 @@ kubectl apply -f config/crds/multitenant.k8s-mtp.io_tenants.yaml
 helm install k8s-mtp deploy/charts/k8s-mtp \
   --set db.password=<your-postgres-password> \
   --set image.tag=latest \
-  --set ingress.host=api.k8s-mtp.local
+  --set ingress.host=api.k8s-mtp.local \
+  --set dex.enabled=true
 ```
 
-The Helm chart deploys: namespace, ConfigMap, Secret, API Deployment and Service, Controller Deployment with RBAC, and optional Ingress.
+The Helm chart deploys: namespace, ConfigMap, Secret, API Deployment and Service, Controller Deployment with RBAC, Dex Deployment/Service/Secret (optional), and optional Ingress.
 
 To provision the underlying infrastructure (K3s cluster + PostgreSQL), see the Terraform configs in `deploy/terraform/`.
 
@@ -105,6 +128,32 @@ spec:
 Apply with:
 ```bash
 kubectl apply -f tenant.yaml
+```
+
+### Using the CLI
+
+```bash
+# Build the CLI
+make build
+
+# Configure the CLI (set your Dex and API URLs first)
+mkdir -p ~/.k8s-mtp
+echo '{"dex_url":"http://localhost:5556","api_url":"http://localhost:8080","client_id":"k8s-mtp-cli"}' > ~/.k8s-mtp/config
+
+# Login (uses Dex password grant)
+./bin/k8s-mtp login
+# Username: admin
+# Password: <static password from Helm deployment>
+
+# Manage tenants
+./bin/k8s-mtp tenant list
+./bin/k8s-mtp tenant create '{"name":"acme","tier":"free","owner_email":"admin@acme.com"}'
+./bin/k8s-mtp tenant get <tenant-id>
+
+# Manage members
+./bin/k8s-mtp member add <tenant-id> <user-id> admin
+./bin/k8s-mtp member list <tenant-id>
+./bin/k8s-mtp member remove <tenant-id> <user-id>
 ```
 
 ### Troubleshooting
@@ -186,13 +235,17 @@ By default, tenants are isolated from each other:
 k8s-mtp/
 ├── cmd/
 │   ├── api/              # HTTP API server
+│   ├── cli/              # CLI management tool
 │   ├── controller/       # K8s operator with reconciler
 │   └── webhook/          # Admission webhook server
 ├── internal/
 │   ├── config/           # Configuration parsing
+│   ├── handlers/         # REST API handlers (tenants + members)
+│   ├── middleware/        # JWT authentication + rate limiting
 │   ├── reconciler/       # Controller reconciliation logic
 │   ├── server/           # HTTP server setup and logging
-│   ├── store/            # Database connection and migrations
+│   ├── store/            # Database connection, migrations, CRUD
+│   │   └── migrations/   # Embedded SQL schema files
 │   └── webhook/          # Webhook deployment manager
 ├── pkg/
 │   ├── api/              # API types (Tenant CRD)
@@ -201,7 +254,11 @@ k8s-mtp/
 ├── config/
 │   └── crds/             # Kubernetes CRDs
 ├── deploy/
-│   ├── charts/k8s-mtp/   # Helm chart
+│   ├── charts/k8s-mtp/   # Helm chart (incl. Dex templates)
+│   │   └── templates/
+│   │       ├── dex-secret.yaml
+│   │       ├── dex-deployment.yaml
+│   │       └── dex-service.yaml
 │   └── terraform/        # K3s + PostgreSQL provisioning
 ├── .gitea/workflows/     # Gitea Actions CI pipeline
 ├── Makefile
@@ -247,11 +304,14 @@ On push to `main`, the Gitea Actions pipeline (`.gitea/workflows/ci.yaml`) runs:
 
 ### Technology Stack
 
-- **Go 1.21+** - Standard library focus (net/http, slog, database/sql)
+- **Go 1.25+** - Standard library focus (net/http, slog, database/sql)
 - **controller-runtime** - Kubernetes operator framework
+- **golang-jwt/jwt/v5** - JWT parsing and validation
+- **Dex** - OIDC identity provider (Helm-managed, optional)
 - **K3s** - Lightweight Kubernetes distribution
 - **PostgreSQL** - Tenant metadata storage
 - **ko** - Daemonless Go container builds
+- **golang-migrate** - Embedded database migrations
 - **lib/pq** - PostgreSQL driver (stdlib compatible)
 
 ### Design Principles
