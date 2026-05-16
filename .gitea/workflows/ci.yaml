@@ -9,7 +9,9 @@ jobs:
       GOPRIVATE: git.assilvestrar.club
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: lourenco/actions/checkout@v1
+        with:
+          token: ${{ secrets.REPO_SECRET }}
       - name: Lint
         run: make lint
       - name: Test
