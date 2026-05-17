@@ -328,6 +328,7 @@ This project is documented in a blog series:
 - [Part 1: Foundations](https://excipio.tech/blog/k8s-mtp-a-multi-tenant-kubernetes-platform-pt.-1/)
 - [Part 2: Core Controller](https://excipio.tech/blog/k8s-mtp-a-multi-tenant-kubernetes-platform-pt.-2/)
 - [Part 3: Security Layer](https://excipio.tech/blog/k8s-mtp-a-multi-tenant-kubernetes-platform-pt.-3/)
+- [Part 4: Middleware](https://excipio.tech/blog/k8s-mtp-a-multi-tenant-kubernetes-platform-pt.-4/)
 
 ## License
 
